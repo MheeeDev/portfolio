@@ -3,9 +3,23 @@ export const site = {
   name: 'Sureeporn Kromthin',
   headline: 'Automation & Industrial Software Engineer',
   tagline: 'PLC · SCADA · OT/IT integration — from the Sequence of Operation to site acceptance.',
+  // Home page hero. The last word of the slogan is drawn in the accent colour.
+  greeting: 'สวัสดีครับ ยินดีที่ได้รู้จัก',
   slogan: 'Build. Test. Commission. Share.',
-  // One Thai line under the tagline on the home page, for readers who come for the articles.
+  sloganTh: 'ลงมือสร้าง · ทดสอบให้มั่นใจ · ส่งมอบหน้างานจริง · แล้วเอามาแชร์ต่อ',
   intro: 'แชร์ความรู้งาน Automation จากหน้างานจริง ทั้ง PLC, SCADA, OT/IT และเครื่องมือ AI ที่ช่วยให้ทำงานเร็วขึ้น',
+  // "Now building" line under the hero buttons. Empty = hidden.
+  now: 'กำลังทำ: UNS demo ด้วย MQTT + Ignition + Grafana บน Docker',
+  // "What I do" tiles on the home page.
+  services: [
+    { icon: 'plc', title: 'PLC & Controls', text: 'Siemens S7-1200/1500, Rockwell ControlLogix, Mitsubishi FX5U — sequences, PID loops, drives and safety.' },
+    { icon: 'scada', title: 'SCADA & HMI', text: 'Ignition, WinCC Unified, FactoryTalk Optix — screens and alarms built for the people who run the process.' },
+    { icon: 'network', title: 'OT/IT Integration', text: 'OPC UA, MQTT, MySQL, InfluxDB — PLC data to MES, historians and dashboards, with traceability.' },
+    { icon: 'teach', title: 'Training & Labs', text: 'Digital-twin rigs, an online automation course and a cloud lab used in university process-control classes.' },
+  ],
+  // Profile photo under public/, e.g. 'profile.jpg'. Empty = initials in a circle.
+  avatar: 'profile.webp' as string,
+  domain: 'iamautomationeng.com',
   location: 'Chonburi, Thailand · open to relocation',
   email: 'skn.automationeng@gmail.com',
   links: [

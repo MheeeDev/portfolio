@@ -7,7 +7,7 @@ const { post } = Astro.props;
 const d = post.data;
 const href = url(`blog/${post.id}/`);
 ---
-<article class="card" lang={d.lang}>
+<article class="card spot" lang={d.lang}>
   <a class="thumb" href={href} tabindex="-1" aria-hidden="true">
     <img src={youtubeThumb(d.youtube!)} alt="" width="480" height="360" loading="lazy" decoding="async" />
     <span class="icon"></span>
@@ -19,7 +19,8 @@ const href = url(`blog/${post.id}/`);
 </article>
 
 <style>
-  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); transition: transform 0.2s, border-color 0.2s; }
+  .card:hover { transform: translateY(-2px); border-color: var(--accent); }
   .thumb { display: block; position: relative; aspect-ratio: 16 / 9; background: #000; }
   .thumb img { width: 100%; height: 100%; object-fit: cover; }
   .icon { position: absolute; left: 50%; top: 50%; width: 52px; height: 36px; transform: translate(-50%, -50%); background: rgb(0 0 0 / 0.7); border-radius: 9px; }

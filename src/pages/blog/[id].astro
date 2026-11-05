@@ -22,6 +22,7 @@ const d = post.data;
 const { Content } = await render(post);
 ---
 <Base title={d.title} description={d.summary} lang={d.lang}>
+  <div class="progress no-print" aria-hidden="true"></div>
   <article class="wrap post">
     <p class="back" lang="en"><a href={url('blog/')}>← All articles</a></p>
     <header>
@@ -57,7 +58,23 @@ const { Content } = await render(post);
   </article>
 </Base>
 
+<script>
+  // Reading progress: the bar under the header fills as the article is read.
+  const bar = document.querySelector<HTMLElement>('.progress');
+  const article = document.querySelector<HTMLElement>('.post .prose');
+  const update = () => {
+    if (!bar || !article) return;
+    const r = article.getBoundingClientRect();
+    const p = Math.min(1, Math.max(0, (innerHeight * 0.4 - r.top) / r.height));
+    bar.style.transform = `scaleX(${p})`;
+  };
+  addEventListener('scroll', update, { passive: true });
+  addEventListener('resize', update);
+  update();
+</script>
+
 <style>
+  .progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 20; transform-origin: 0 50%; transform: scaleX(0); background: linear-gradient(90deg, var(--accent), #22c55e); }
   .post { max-width: 820px; padding-top: 1.5rem; }
   .back { margin: 0 0 1.2rem; }
   .meta { display: flex; flex-wrap: wrap; gap: 0.3rem 0.8rem; font-size: 0.85rem; color: var(--muted); margin: 0; }
