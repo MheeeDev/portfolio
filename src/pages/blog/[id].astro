@@ -7,6 +7,9 @@ import Callout from '../../components/mdx/Callout.astro';
 import Checklist from '../../components/mdx/Checklist.astro';
 import SkillLoop from '../../components/mdx/SkillLoop.astro';
 import SkillMap from '../../components/mdx/SkillMap.astro';
+import TankSim from '../../components/mdx/TankSim.astro';
+import TestMatrix from '../../components/mdx/TestMatrix.astro';
+import TwinSwitch from '../../components/mdx/TwinSwitch.astro';
 import { categoryLabel, formatDate, getPosts, url, type Post } from '../../lib';
 import { site } from '../../site';
 
@@ -23,15 +26,41 @@ interface Props { post: Post; newer?: Post; older?: Post }
 const { post, newer, older } = Astro.props;
 const d = post.data;
 // These components work inside .mdx articles without an import line.
-const components = { YouTube, Callout, Checklist, SkillLoop, SkillMap };
+const components = { YouTube, Callout, Checklist, SkillLoop, SkillMap, TankSim, TestMatrix, TwinSwitch };
 const { Content, headings } = await render(post);
 const toc = headings.filter((h) => h.depth === 2);
 // Thai has no spaces between words, so estimate from characters (~900 a minute) rather than words.
 const text = (post.body ?? '').replace(/<[^>]+>|[#*`>{}\[\]()]/g, '');
 const minutes = Math.max(1, Math.round(text.replace(/\s+/g, '').length / 900));
 const initials = site.name.split(' ').map((w) => w[0]).join('').slice(0, 2);
+// Articles with a cover get a PNG share image from /og/<id>.png; the rest fall back to the profile photo.
+const shareImage = d.cover ? `og/${post.id}.png` : undefined;
+const pageUrl = new URL(url(`blog/${post.id}/`), Astro.site).href;
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: d.title,
+  description: d.summary,
+  datePublished: d.date.toISOString(),
+  inLanguage: d.lang,
+  keywords: d.tags.join(', '),
+  mainEntityOfPage: pageUrl,
+  url: pageUrl,
+  image: shareImage ? new URL(url(shareImage), Astro.site).href : undefined,
+  author: { '@type': 'Person', name: site.name, url: new URL(url('about/'), Astro.site).href },
+  ...(d.youtube && {
+    video: {
+      '@type': 'VideoObject',
+      name: d.title,
+      description: d.summary,
+      thumbnailUrl: `https://i.ytimg.com/vi/${d.youtube}/hqdefault.jpg`,
+      uploadDate: d.date.toISOString(),
+      embedUrl: `https://www.youtube-nocookie.com/embed/${d.youtube}`,
+    },
+  }),
+};
 ---
-<Base title={d.title} description={d.summary} lang={d.lang}>
+<Base title={d.title} description={d.summary} lang={d.lang} type="article" image={shareImage} jsonLd={jsonLd}>
   <div class="progress no-print" aria-hidden="true"></div>
 
   <header class="post-hero">

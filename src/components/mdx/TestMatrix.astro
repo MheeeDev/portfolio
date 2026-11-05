@@ -1,0 +1,44 @@
+---
+// Test cases for a control loop: what to inject, what the PLC must do, and where it is safe to try it first.
+// <TestMatrix rows={[{ name, inject, expect, where: 'twin' | 'both' | 'real' }]} />
+interface Row {
+  name: string;
+  inject: string;
+  expect: string;
+  where: 'twin' | 'both' | 'real';
+}
+interface Props { rows: Row[] }
+const { rows } = Astro.props;
+const label = { twin: 'Twin ก่อนเท่านั้น', both: 'Twin → เครื่องจริง', real: 'เครื่องจริง' };
+---
+<div class="matrix" role="region" aria-label="Test matrix" tabindex="0">
+  <table>
+    <thead><tr><th>#</th><th>Test case</th><th>ใส่อะไรเข้าไป</th><th>PLC ต้องทำอะไร</th><th>ทดสอบที่ไหน</th></tr></thead>
+    <tbody>
+      {rows.map((r, i) => (
+        <tr>
+          <td class="n">{String(i + 1).padStart(2, '0')}</td>
+          <td class="name">{r.name}</td>
+          <td>{r.inject}</td>
+          <td>{r.expect}</td>
+          <td><span class:list={['where', `w-${r.where}`]}>{label[r.where]}</span></td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
+<style>
+  .matrix { margin: 1.8rem 0; overflow-x: auto; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+  table { display: table; width: 100%; min-width: 640px; border-collapse: collapse; font-size: 0.9rem; }
+  th { text-align: left; font: 600 0.72rem var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 0.8rem 0.9rem; background: var(--chip); border-bottom: 1px solid var(--line); }
+  td { padding: 0.75rem 0.9rem; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.55; }
+  tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+  .n { font-family: var(--mono); color: var(--accent); font-weight: 600; }
+  .name { font-weight: 600; white-space: nowrap; }
+  .where { display: inline-block; white-space: nowrap; font-size: 0.75rem; font-weight: 600; padding: 0.15rem 0.55rem; border-radius: 999px; }
+  .w-twin { background: color-mix(in srgb, #a855f7 15%, transparent); color: #a855f7; }
+  .w-both { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+  .w-real { background: color-mix(in srgb, #22c55e 15%, transparent); color: #16a34a; }
+</style>

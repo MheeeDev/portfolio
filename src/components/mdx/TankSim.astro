@@ -1,0 +1,149 @@
+---
+// A tiny digital twin in the browser: a tank level (integrating process with dead time) under PI control.
+// Readers move Kp and Ti and the step test runs again; it passes only if it meets every test criterion.
+// Model: dL/dt = K·(u(t−θ) − u0), PI with output clamp 0–100 % and anti-windup. SP steps 50 → 75 % at t = 10 s.
+---
+<section class="tank" data-k="0.04" data-theta="8">
+  <header>
+    <p class="title">🧪 Step test บน Digital Twin · Tank level</p>
+    <p class="hint">ลองปรับ Kp กับ Ti ให้ผ่านทุกเกณฑ์ โดยไม่ทำให้ถังล้น</p>
+  </header>
+
+  <div class="controls">
+    <label>Kp <output data-out="kp">4.0</output><input type="range" name="kp" min="0.5" max="6" step="0.1" value="4" /></label>
+    <label>Ti (s) <output data-out="ti">20</output><input type="range" name="ti" min="10" max="300" step="5" value="20" /></label>
+    <button type="button" class="reset">Reset</button>
+  </div>
+
+  <svg viewBox="0 0 640 260" role="img" aria-label="Step response of the tank level">
+    <g class="axes">
+      {[0, 25, 50, 75, 100].map((v) => <><line x1="40" x2="630" y1={230 - v * 2} y2={230 - v * 2} /><text x="32" y={234 - v * 2}>{v}</text></>)}
+    </g>
+    <line class="hh" x1="40" x2="630" y1={230 - 85 * 2} y2={230 - 85 * 2} />
+    <text class="hh-label" x="626" y={224 - 85 * 2}>HH 85 %</text>
+    <path class="sp" d="" />
+    <path class="pv" d="" />
+    <path class="mv" d="" />
+    <text class="axis-label" x="630" y="252">time 0 → 400 s</text>
+  </svg>
+  <p class="legend"><span class="k pv-k"></span>Level PV <span class="k sp-k"></span>Setpoint <span class="k mv-k"></span>Valve output</p>
+
+  <ul class="results">
+    <li data-test="hh"><span class="chip"></span>ไม่ชน High-High alarm (85 %)</li>
+    <li data-test="os"><span class="chip"></span>Overshoot ≤ 15 % <b class="val"></b></li>
+    <li data-test="st"><span class="chip"></span>Settling time ≤ 150 s <b class="val"></b></li>
+  </ul>
+  <p class="verdict"></p>
+</section>
+
+<script>
+  document.querySelectorAll<HTMLElement>('.tank').forEach((box) => {
+    const K = Number(box.dataset.k);
+    const theta = Number(box.dataset.theta);
+    const kp = box.querySelector<HTMLInputElement>('input[name=kp]')!;
+    const ti = box.querySelector<HTMLInputElement>('input[name=ti]')!;
+    const out = (n: string) => box.querySelector<HTMLOutputElement>(`[data-out=${n}]`)!;
+    const path = (c: string) => box.querySelector<SVGPathElement>(`path.${c}`)!;
+    const X = (t: number) => 40 + (t / 400) * 590;
+    const Y = (v: number) => 230 - v * 2;
+
+    function run() {
+      const Kp = Number(kp.value), Ti = Number(ti.value), dt = 0.1, u0 = 50, sp0 = 50, sp1 = 75;
+      out('kp').textContent = Kp.toFixed(1);
+      out('ti').textContent = String(Ti);
+      const buf: number[] = Array(Math.round(theta / dt)).fill(u0);
+      let L = sp0, I = 0, max = L, hh = false;
+      const pv: string[] = [], mv: string[] = [], samples: [number, number][] = [];
+      for (let i = 0; i <= 4000; i++) {
+        const t = i * dt;
+        const sp = t < 10 ? sp0 : sp1;
+        const e = sp - L;
+        let u = u0 + Kp * (e + I / Ti);
+        if (u > 100) u = 100;
+        else if (u < 0) u = 0;
+        else I += e * dt; // integrate only while the valve is not saturated (anti-windup)
+        buf.push(u);
+        L += K * (buf.shift()! - u0) * dt;
+        if (t > 10) max = Math.max(max, L);
+        if (L >= 85) hh = true;
+        if (i % 10 === 0) {
+          pv.push(`${X(t).toFixed(1)},${Y(Math.min(Math.max(L, 0), 110)).toFixed(1)}`);
+          mv.push(`${X(t).toFixed(1)},${Y(u).toFixed(1)}`);
+          samples.push([t, L]);
+        }
+      }
+      let settle = 0;
+      for (let i = samples.length - 1; i >= 0; i--) if (Math.abs(samples[i][1] - sp1) > 0.02 * sp1) { settle = samples[i][0] - 10; break; }
+      const os = ((max - sp1) / (sp1 - sp0)) * 100;
+
+      path('pv').setAttribute('d', `M${pv.join(' L')}`);
+      path('mv').setAttribute('d', `M${mv.join(' L')}`);
+      path('sp').setAttribute('d', `M${X(0)},${Y(sp0)} H${X(10)} V${Y(sp1)} H${X(400)}`);
+      box.classList.toggle('tripped', hh);
+
+      const tests: Record<string, [boolean, string]> = {
+        hh: [!hh, ''],
+        os: [os <= 15, `${Math.max(0, os).toFixed(0)} %`],
+        st: [settle <= 150, settle >= 389 ? 'ไม่นิ่ง' : `${settle.toFixed(0)} s`],
+      };
+      let all = true;
+      for (const [id, [ok, val]] of Object.entries(tests)) {
+        const li = box.querySelector<HTMLElement>(`[data-test=${id}]`)!;
+        li.classList.toggle('ok', ok);
+        li.querySelector('.chip')!.textContent = ok ? 'PASS' : 'FAIL';
+        const v = li.querySelector('.val');
+        if (v) v.textContent = val;
+        all &&= ok;
+      }
+      const verdict = box.querySelector<HTMLElement>('.verdict')!;
+      verdict.textContent = all
+        ? '✅ ผ่านทุกเกณฑ์ ค่านี้พร้อมเอาไปลองกับเครื่องจริงแบบระวังได้แล้ว'
+        : hh
+          ? '🚨 ถังล้นใน Twin เจอตอนนี้ดีกว่าเจอที่หน้างาน ลองลด Kp หรือเพิ่ม Ti'
+          : '⚠️ ยังไม่ผ่าน ลองปรับต่ออีกนิด';
+      verdict.classList.toggle('ok', all);
+    }
+
+    kp.addEventListener('input', run);
+    ti.addEventListener('input', run);
+    box.querySelector('.reset')!.addEventListener('click', () => { kp.value = '4'; ti.value = '20'; run(); });
+    run();
+  });
+</script>
+
+<style>
+  .tank { margin: 2rem 0; padding: 1.3rem 1.4rem 1.2rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: var(--shadow); transition: border-color 0.3s; }
+  .tank.tripped { border-color: #ef4444; }
+  header p { margin: 0; }
+  .title { font-weight: 700; font-size: 1.08rem; }
+  .hint { color: var(--muted); font-size: 0.9rem; }
+  .controls { display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.8rem 1.4rem; align-items: end; margin: 1rem 0 0.6rem; }
+  @media (max-width: 560px) { .controls { grid-template-columns: 1fr; } }
+  label { display: grid; grid-template-columns: 1fr auto; gap: 0.2rem; font-family: var(--mono); font-size: 0.85rem; color: var(--muted); }
+  label input { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); }
+  output { color: var(--text); font-weight: 600; }
+  .reset { font: inherit; font-size: 0.85rem; padding: 0.4rem 0.9rem; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); cursor: pointer; }
+  .reset:hover { border-color: var(--accent); }
+  svg { width: 100%; height: auto; display: block; background: color-mix(in srgb, var(--chip) 50%, transparent); border-radius: 12px; }
+  .axes line { stroke: var(--line); }
+  .axes text, .axis-label { font: 10px var(--mono); fill: var(--muted); text-anchor: end; }
+  .hh { stroke: #ef4444; stroke-width: 1.5; stroke-dasharray: 6 4; }
+  .hh-label { font: 600 10px var(--mono); fill: #ef4444; text-anchor: end; }
+  .sp { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 6 6; }
+  .pv { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; }
+  .mv { fill: none; stroke: #a855f7; stroke-width: 1.2; opacity: 0.6; }
+  .tripped .pv { stroke: #ef4444; }
+  .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.5rem; font-size: 0.8rem; color: var(--muted); margin: 0.5rem 0 0; }
+  .k { display: inline-block; width: 18px; height: 3px; border-radius: 2px; margin-left: 0.6rem; }
+  .k:first-child { margin-left: 0; }
+  .pv-k { background: var(--accent); }
+  .sp-k { background: var(--muted); }
+  .mv-k { background: #a855f7; }
+  .results { list-style: none; padding: 0; margin: 0.9rem 0 0; display: grid; gap: 0.35rem; font-size: 0.92rem; }
+  .results li { display: flex; align-items: center; gap: 0.6rem; }
+  .chip { min-width: 3.4rem; text-align: center; font: 700 0.72rem var(--mono); padding: 0.1rem 0.4rem; border-radius: 5px; background: #fee2e2; color: #b91c1c; }
+  .ok .chip { background: #dcfce7; color: #15803d; }
+  .val { font-family: var(--mono); font-weight: 500; color: var(--muted); margin-left: auto; }
+  .verdict { margin: 0.9rem 0 0; padding: 0.6rem 0.9rem; border-radius: 10px; background: color-mix(in srgb, #ef4444 10%, transparent); font-weight: 600; }
+  .verdict.ok { background: color-mix(in srgb, #22c55e 12%, transparent); }
+</style>

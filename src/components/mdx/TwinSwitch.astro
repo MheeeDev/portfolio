@@ -1,0 +1,100 @@
+---
+// The rig's one switch, drawn: the same Simulink controller talks either to the plant model
+// (USE_OPC = 0) or, over OPC UA, to the S7-1500 and the real rig (USE_OPC = 1).
+---
+<section class="twinswitch" data-mode="0">
+  <div class="bar">
+    <p class="title">🔀 สวิตช์เดียว สลับจาก Twin ไปเครื่องจริง</p>
+    <button type="button" class="switch" role="switch" aria-checked="false">
+      <span class="label" lang="en">USE_OPC =</span>
+      <span class="track"><span class="knob"></span></span>
+      <span class="val" lang="en">0</span>
+    </button>
+  </div>
+
+  <svg viewBox="0 0 680 300" role="img" aria-label="Simulink controller connected to a plant model or, over OPC UA, to the S7-1500 and the real rig">
+    <g class="box ctrl">
+      <rect x="20" y="95" width="200" height="110" rx="14" />
+      <text x="120" y="128" class="h">Simulink</text>
+      <text x="120" y="152" class="s">Level PI → Flow PI</text>
+      <text x="120" y="172" class="s">same controller</text>
+      <text x="120" y="190" class="s">both modes</text>
+    </g>
+
+    <g class="route sim">
+      <path class="wire" d="M220 130 C 300 130, 320 60, 400 60" />
+      <path class="wire back" d="M400 90 C 330 90, 300 160, 220 160" />
+      <g class="box">
+        <rect x="400" y="30" width="250" height="80" rx="14" />
+        <text x="525" y="62" class="h">Plant model</text>
+        <text x="525" y="84" class="s">level K/s · flow FOPDT</text>
+      </g>
+      <text x="300" y="52" class="tag">MV</text>
+      <text x="300" y="186" class="tag">PV</text>
+    </g>
+
+    <g class="route real">
+      <path class="wire" d="M220 140 C 280 140, 280 230, 330 230" />
+      <path class="wire" d="M450 230 H 480" />
+      <path class="wire back" d="M480 260 H 450 M330 260 C 270 260, 260 170, 220 170" />
+      <g class="box">
+        <rect x="330" y="200" width="120" height="80" rx="14" />
+        <text x="390" y="232" class="h">S7-1500</text>
+        <text x="390" y="254" class="s">OPC UA :4840</text>
+      </g>
+      <g class="box">
+        <rect x="480" y="200" width="170" height="80" rx="14" />
+        <text x="565" y="232" class="h">Real rig</text>
+        <text x="565" y="254" class="s">LT-101 · FT-101 · FCV-101</text>
+      </g>
+    </g>
+  </svg>
+
+  <p class="caption" data-for="0">🧪 <b>USE_OPC = 0</b> คอนโทรลเลอร์คุยกับโมเดลใน Simulink เล่นแรงแค่ไหนก็ไม่มีถังล้นจริง จึงเหมาะกับการลอง test case ที่อันตราย</p>
+  <p class="caption" data-for="1" hidden>🏭 <b>USE_OPC = 1</b> คอนโทรลเลอร์ตัวเดิม ส่ง MV และอ่าน PV ผ่าน OPC UA ของ S7-1500 ไปที่เครื่องจริง ไม่ต้องเขียนโค้ดใหม่</p>
+</section>
+
+<script>
+  document.querySelectorAll<HTMLElement>('.twinswitch').forEach((box) => {
+    const sw = box.querySelector<HTMLButtonElement>('.switch')!;
+    sw.addEventListener('click', () => {
+      const mode = box.dataset.mode === '0' ? '1' : '0';
+      box.dataset.mode = mode;
+      sw.setAttribute('aria-checked', String(mode === '1'));
+      sw.querySelector('.val')!.textContent = mode;
+      box.querySelectorAll<HTMLElement>('.caption').forEach((c) => (c.hidden = c.dataset.for !== mode));
+    });
+  });
+</script>
+
+<style>
+  .twinswitch { margin: 2rem 0; padding: 1.2rem 1.3rem; border: 1px solid var(--line); border-radius: 20px; background: radial-gradient(circle at 30% 30%, var(--accent-soft), var(--surface) 70%); }
+  .bar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  .title { margin: 0; font-weight: 700; }
+  .switch { display: inline-flex; align-items: center; gap: 0.6rem; font: 600 0.9rem var(--mono); padding: 0.4rem 0.8rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--text); cursor: pointer; }
+  .track { position: relative; width: 44px; height: 24px; border-radius: 999px; background: var(--chip); transition: background 0.25s; }
+  .knob { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--muted); transition: transform 0.25s, background 0.25s; }
+  [data-mode='1'] .track { background: color-mix(in srgb, #22c55e 30%, transparent); }
+  [data-mode='1'] .knob { transform: translateX(20px); background: #22c55e; }
+  .val { min-width: 1ch; color: var(--accent); }
+  [data-mode='1'] .val { color: #22c55e; }
+  svg { width: 100%; height: auto; display: block; margin: 0.8rem 0 0.4rem; }
+  .box rect { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+  .ctrl rect { stroke: var(--accent); stroke-width: 2; }
+  .h { font: 700 16px var(--font); fill: var(--text); text-anchor: middle; }
+  .s { font: 11px var(--mono); fill: var(--muted); text-anchor: middle; }
+  .tag { font: 600 11px var(--mono); fill: var(--muted); text-anchor: middle; }
+  .wire { fill: none; stroke: var(--line); stroke-width: 3; stroke-linecap: round; }
+  .route { transition: opacity 0.3s; }
+  [data-mode='0'] .real, [data-mode='1'] .sim { opacity: 0.25; }
+  [data-mode='0'] .sim .wire { stroke: var(--accent); stroke-dasharray: 8 10; }
+  [data-mode='1'] .real .wire { stroke: #22c55e; stroke-dasharray: 8 10; }
+  [data-mode='0'] .sim .box rect { stroke: var(--accent); }
+  [data-mode='1'] .real .box rect { stroke: #22c55e; }
+  .caption { margin: 0; font-size: 0.92rem; }
+  @media (prefers-reduced-motion: no-preference) {
+    [data-mode='0'] .sim .wire, [data-mode='1'] .real .wire { animation: dash 1.2s linear infinite; }
+    .wire.back { animation-direction: reverse !important; }
+  }
+  @keyframes dash { to { stroke-dashoffset: -36; } }
+</style>

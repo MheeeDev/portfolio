@@ -9,11 +9,31 @@ interface Props {
   description?: string;
   /** Language of the page's main content. Thai articles pass 'th'. */
   lang?: 'en' | 'th';
+  /** Share image path under the site, e.g. 'og/<slug>.png'. Defaults to the profile photo. */
+  image?: string;
+  /** 'article' for blog posts; everything else is a website page. */
+  type?: 'website' | 'article';
+  /** Extra schema.org data for search engines, e.g. a BlogPosting. */
+  jsonLd?: Record<string, unknown>;
 }
-const { title, description = site.tagline, lang = 'en' } = Astro.props;
+const { title, description = site.tagline, lang = 'en', image, type = 'website', jsonLd } = Astro.props;
 const pageTitle = title ? `${title} — ${site.name}` : `${site.name} — ${site.headline}`;
 const path = Astro.url.pathname;
 const canonical = new URL(path, Astro.site);
+const shareImage = image ?? site.avatar;
+const imageUrl = shareImage ? new URL(url(shareImage), Astro.site).href : undefined;
+// Who runs the site, on every page, so search engines can tie the articles and projects to one person.
+const person = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: site.name,
+  alternateName: 'เค้ก',
+  jobTitle: site.headline,
+  url: new URL(url(), Astro.site).href,
+  email: `mailto:${site.email}`,
+  image: site.avatar ? new URL(url(site.avatar), Astro.site).href : undefined,
+  sameAs: site.links.map((l) => l.href),
+};
 const nav = [
   { href: url(), label: 'Home', exact: true },
   { href: url('blog/'), label: 'Blog' },
@@ -32,10 +52,16 @@ const current = (n: (typeof nav)[number]) => (n.exact ? path === n.href : path.s
     <title>{pageTitle}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content={type} />
+    <meta property="og:site_name" content={site.domain} />
     <meta property="og:url" content={canonical} />
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={description} />
+    <meta property="og:locale" content={lang === 'th' ? 'th_TH' : 'en_US'} />
+    {imageUrl && <meta property="og:image" content={imageUrl} />}
+    <meta name="twitter:card" content={image ? 'summary_large_image' : 'summary'} />
+    <script type="application/ld+json" set:html={JSON.stringify(person)} />
+    {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
     <link rel="icon" href={url('favicon.svg')} type="image/svg+xml" />
     <link rel="alternate" type="application/rss+xml" title={`${site.name} — Blog`} href={url('rss.xml')} />
     <link rel="sitemap" href={url('sitemap-index.xml')} />
