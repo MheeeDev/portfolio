@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#0b6e8a"/></marker>
+  </defs>
+  <rect width="1600" height="900" fill="#f4f7f9"/>
+  <text x="80" y="92" font-size="30" font-weight="700" fill="#16191d">Hospital energy monitoring</text>
+  <text x="80" y="132" font-size="22" fill="#5b6470">Meters in the distribution boards → Energy Manager PRO dashboards per building</text>
+
+  <g font-size="20" fill="#16191d">
+    <rect x="80" y="200" width="420" height="550" rx="14" fill="#fff" stroke="#dde1e6" stroke-width="2"/>
+    <text x="110" y="242" font-size="22" font-weight="700">Distribution boards</text>
+    <rect x="110" y="270" width="360" height="90" rx="10" fill="#e3f1f5"/><text x="135" y="312" font-weight="600">Building A · PAC5200</text><text x="135" y="340" fill="#5b6470" font-size="16">V · I · kW · kWh</text>
+    <rect x="110" y="380" width="360" height="90" rx="10" fill="#e3f1f5"/><text x="135" y="422" font-weight="600">Building B · PAC5200</text><text x="135" y="450" fill="#5b6470" font-size="16">V · I · kW · kWh</text>
+    <rect x="110" y="490" width="360" height="90" rx="10" fill="#e3f1f5"/><text x="135" y="532" font-weight="600">Building … · PAC5200</text><text x="135" y="560" fill="#5b6470" font-size="16">one meter per board</text>
+    <rect x="110" y="600" width="360" height="90" rx="10" fill="#fff4cc"/><text x="135" y="642" font-weight="600">Rooftop solar</text><text x="135" y="670" fill="#5b6470" font-size="16">on site</text>
+  </g>
+
+  <line x1="502" y1="470" x2="592" y2="470" stroke="#0b6e8a" stroke-width="5" marker-end="url(#a)"/>
+  <text x="547" y="455" font-size="16" fill="#0b6e8a" text-anchor="middle">network</text>
+
+  <rect x="600" y="200" width="920" height="550" rx="14" fill="#fff" stroke="#0b6e8a" stroke-width="2"/>
+  <text x="630" y="242" font-size="22" font-weight="700" fill="#16191d">Siemens Energy Manager PRO</text>
+  <!-- bars -->
+  <g fill="#0b6e8a">
+    <rect x="660" y="520" width="60" height="160"/><rect x="740" y="440" width="60" height="240"/><rect x="820" y="560" width="60" height="120"/><rect x="900" y="400" width="60" height="280"/><rect x="980" y="480" width="60" height="200"/>
+  </g>
+  <line x1="640" y1="680" x2="1060" y2="680" stroke="#5b6470" stroke-width="2"/>
+  <text x="660" y="300" font-size="19" fill="#16191d" font-weight="600">Electricity use per building</text>
+  <text x="660" y="330" font-size="16" fill="#5b6470">daily and monthly trends</text>
+  <!-- gauge -->
+  <path d="M1140 560 A140 140 0 0 1 1420 560" fill="none" stroke="#dde1e6" stroke-width="30"/>
+  <path d="M1140 560 A140 140 0 0 1 1330 428" fill="none" stroke="#2ea44f" stroke-width="30"/>
+  <text x="1280" y="545" font-size="34" font-weight="700" fill="#16191d" text-anchor="middle">฿</text>
+  <text x="1280" y="610" font-size="17" fill="#5b6470" text-anchor="middle">electricity cost from kWh</text>
+
+  <text x="80" y="830" font-size="20" fill="#5b6470">Energy monitoring in Energy Manager PRO · electricity cost calculation · walk-through with the hospital's engineers</text>
+</svg>

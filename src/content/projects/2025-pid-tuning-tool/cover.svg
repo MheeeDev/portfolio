@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#0b6e8a"/></marker>
+  </defs>
+  <rect width="1600" height="900" fill="#f4f7f9"/>
+  <text x="80" y="92" font-size="30" font-weight="700" fill="#16191d">Process identification &amp; PID tuning tool</text>
+  <text x="80" y="132" font-size="22" fill="#5b6470">Step-test data from the historian → FOPDT model → IMC λ-tuning, with fit quality</text>
+
+  <!-- chart -->
+  <rect x="80" y="180" width="860" height="560" rx="14" fill="#fff" stroke="#dde1e6" stroke-width="2"/>
+  <line x1="150" y1="680" x2="900" y2="680" stroke="#5b6470" stroke-width="2"/>
+  <line x1="150" y1="680" x2="150" y2="220" stroke="#5b6470" stroke-width="2"/>
+  <text x="525" y="722" font-size="18" fill="#5b6470" text-anchor="middle">time</text>
+  <text x="120" y="450" font-size="18" fill="#5b6470" text-anchor="middle" transform="rotate(-90 120 450)">PV</text>
+  <!-- MV step -->
+  <polyline points="150,640 300,640 300,600 900,600" fill="none" stroke="#c98a1a" stroke-width="3"/>
+  <text x="890" y="590" font-size="17" fill="#c98a1a" text-anchor="end">MV step</text>
+  <!-- measured (noisy) -->
+  <polyline fill="none" stroke="#9aa4b0" stroke-width="3" points="150,560 200,562 250,558 300,561 340,559 370,552 400,530 430,505 460,478 490,455 520,432 550,416 580,400 610,388 640,378 670,370 700,365 730,358 760,356 790,352 820,350 850,349 880,348 900,347"/>
+  <!-- model -->
+  <path d="M150 560 L360 560 C 450 470, 560 390, 700 362 S 860 348, 900 346" fill="none" stroke="#0b6e8a" stroke-width="4"/>
+  <line x1="300" y1="250" x2="300" y2="680" stroke="#dde1e6" stroke-dasharray="6 6"/>
+  <line x1="360" y1="250" x2="360" y2="680" stroke="#dde1e6" stroke-dasharray="6 6"/>
+  <text x="330" y="245" font-size="20" fill="#16191d" text-anchor="middle">θ</text>
+  <g font-size="18">
+    <line x1="560" y1="250" x2="600" y2="250" stroke="#9aa4b0" stroke-width="3"/><text x="610" y="256" fill="#5b6470">measured</text>
+    <line x1="720" y1="250" x2="760" y2="250" stroke="#0b6e8a" stroke-width="4"/><text x="770" y="256" fill="#5b6470">FOPDT fit</text>
+  </g>
+
+  <!-- pipeline -->
+  <g font-size="21" fill="#16191d">
+    <rect x="1020" y="180" width="500" height="80" rx="10" fill="#e3f1f5"/><text x="1045" y="228">InfluxDB · Flux query</text>
+    <line x1="1270" y1="260" x2="1270" y2="292" stroke="#0b6e8a" stroke-width="4" marker-end="url(#a)"/>
+    <rect x="1020" y="300" width="500" height="80" rx="10" fill="#e3f1f5"/><text x="1045" y="348">FOPDT fit — SciPy, bounded</text>
+    <line x1="1270" y1="380" x2="1270" y2="412" stroke="#0b6e8a" stroke-width="4" marker-end="url(#a)"/>
+    <rect x="1020" y="420" width="500" height="80" rx="10" fill="#e3f1f5"/><text x="1045" y="468">Fit quality — R², RMSE</text>
+    <line x1="1270" y1="500" x2="1270" y2="532" stroke="#0b6e8a" stroke-width="4" marker-end="url(#a)"/>
+    <rect x="1020" y="540" width="500" height="80" rx="10" fill="#e3f1f5"/><text x="1045" y="588">IMC λ-tuning → Kc</text>
+    <line x1="1270" y1="620" x2="1270" y2="652" stroke="#0b6e8a" stroke-width="4" marker-end="url(#a)"/>
+    <rect x="1020" y="660" width="500" height="80" rx="10" fill="#0b6e8a"/><text x="1045" y="708" fill="#fff">Streamlit report · run comparison</text>
+  </g>
+  <text x="80" y="820" font-size="20" fill="#5b6470">y(t) = y₀ + K·Δu·(1 − e^(−(t−θ)/τ)),  t ≥ θ</text>
+</svg>

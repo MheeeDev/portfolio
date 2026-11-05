@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#0b6e8a"/></marker>
+  </defs>
+  <rect width="1600" height="900" fill="#f4f7f9"/>
+  <text x="80" y="92" font-size="30" font-weight="700" fill="#16191d">MPC-based PID, Phase I — pressure process identification</text>
+  <text x="80" y="132" font-size="22" fill="#5b6470">Ten open-loop step tests on an S7-1200 rig → FOPDT model → Ziegler-Nichols PID</text>
+
+  <!-- chart: Kp vs MV step (measured values from the ten tests) -->
+  <rect x="80" y="180" width="860" height="580" rx="14" fill="#fff" stroke="#dde1e6" stroke-width="2"/>
+  <text x="110" y="222" font-size="21" font-weight="600" fill="#16191d">Measured process gain Kp by step size</text>
+  <!-- axes: x 160..900 for 0..100 %, y 690..260 for 0..1.0 -->
+  <rect x="160" y="260" width="148" height="430" fill="#fff4e5"/>
+  <text x="234" y="290" font-size="16" fill="#c98a1a" text-anchor="middle">low-gain region</text>
+  <line x1="160" y1="690" x2="900" y2="690" stroke="#5b6470" stroke-width="2"/>
+  <line x1="160" y1="690" x2="160" y2="250" stroke="#5b6470" stroke-width="2"/>
+  <g font-size="16" fill="#5b6470" text-anchor="middle">
+    <text x="234" y="715">10</text><text x="382" y="715">30</text><text x="530" y="715">50</text><text x="678" y="715">70</text><text x="826" y="715">90</text>
+    <text x="530" y="745">MV step size (%)</text>
+  </g>
+  <g font-size="16" fill="#5b6470" text-anchor="end">
+    <text x="150" y="695">0</text><text x="150" y="480">0.5</text><text x="150" y="265">1.0</text>
+  </g>
+  <line x1="160" y1="475" x2="900" y2="475" stroke="#eef0f3" stroke-width="2"/>
+  <line x1="160" y1="260" x2="900" y2="260" stroke="#eef0f3" stroke-width="2"/>
+  <!-- y = 690 - Kp*430 ; x = 160 + MV*7.4 -->
+  <polyline fill="none" stroke="#0b6e8a" stroke-width="4" points="234,561 308,432 382,332 456,317 530,326 604,294 678,283 752,291 826,282 900,274"/>
+  <g fill="#0b6e8a">
+    <circle cx="234" cy="561" r="8"/><circle cx="308" cy="432" r="8"/><circle cx="382" cy="332" r="8"/><circle cx="456" cy="317" r="8"/><circle cx="530" cy="326" r="8"/>
+    <circle cx="604" cy="294" r="8"/><circle cx="678" cy="283" r="8"/><circle cx="752" cy="291" r="8"/><circle cx="826" cy="282" r="8"/><circle cx="900" cy="274" r="8"/>
+  </g>
+  <text x="250" y="590" font-size="17" fill="#16191d">0.30</text>
+  <text x="870" y="255" font-size="17" fill="#16191d">0.97</text>
+
+  <!-- pipeline -->
+  <g font-size="21" fill="#16191d">
+    <rect x="1020" y="180" width="500" height="80" rx="10" fill="#e3f1f5"/><text x="1045" y="228">Step test · MV 0 → 10 … 100 %</text>
+    <line x1="1270" y1="260" x2="1270" y2="292" stroke="#0b6e8a" stroke-width="4" marker-end="url(#a)"/>
+    <rect x="1020" y="300" width="500" height="80" rx="10" fill="#e3f1f5"/><text x="1045" y="348">Reaction curve → Kp · Lp · τp</text>
+    <line x1="1270" y1="380" x2="1270" y2="412" stroke="#0b6e8a" stroke-width="4" marker-end="url(#a)"/>
+    <rect x="1020" y="420" width="500" height="80" rx="10" fill="#e3f1f5"/><text x="1045" y="468">FOPDT model per operating point</text>
+    <line x1="1270" y1="500" x2="1270" y2="532" stroke="#0b6e8a" stroke-width="4" marker-end="url(#a)"/>
+    <rect x="1020" y="540" width="500" height="80" rx="10" fill="#e3f1f5"/><text x="1045" y="588">Ziegler-Nichols · IMC → PID</text>
+    <line x1="1270" y1="620" x2="1270" y2="652" stroke="#0b6e8a" stroke-width="4" marker-end="url(#a)"/>
+    <rect x="1020" y="660" width="500" height="100" rx="10" fill="#0b6e8a"/><text x="1045" y="703" fill="#fff">PID_Compact on S7-1200</text><text x="1045" y="736" fill="#d6edf3" font-size="17">Phase II: MPC adjusts the PID</text>
+  </g>
+  <text x="80" y="830" font-size="20" fill="#5b6470">G(s) = Kp·e^(−Lp·s) / (τp·s + 1)  ·  above 30 %: Kp 0.85–0.97, Lp 3.5–4.6 s, τp 20.5–22.8 s</text>
+</svg>

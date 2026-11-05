@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" font-family="Segoe UI, Arial, sans-serif">
+  <rect width="1600" height="900" fill="#f4f7f9"/>
+  <rect x="80" y="80" width="1440" height="740" rx="20" fill="none" stroke="#9aa4b0" stroke-width="4" stroke-dasharray="20 14"/>
+  <text x="800" y="440" font-size="44" font-weight="700" fill="#5b6470" text-anchor="middle">Cover image goes here</text>
+  <text x="800" y="500" font-size="26" fill="#9aa4b0" text-anchor="middle">Redacted screenshot or architecture diagram · 1600 × 900</text>
+</svg>

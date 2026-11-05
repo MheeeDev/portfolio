@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#0b6e8a"/></marker>
+  </defs>
+  <rect width="1600" height="900" fill="#f4f7f9"/>
+  <text x="80" y="92" font-size="30" font-weight="700" fill="#16191d">Digital twin training rig — level–flow cascade</text>
+  <text x="80" y="132" font-size="22" fill="#5b6470">One Simulink controller · plant model or real S7-1500 rig · switched by USE_OPC</text>
+
+  <!-- Simulink -->
+  <rect x="80" y="190" width="640" height="540" rx="14" fill="#fff" stroke="#dde1e6" stroke-width="2"/>
+  <text x="110" y="232" font-size="22" font-weight="700" fill="#16191d">MATLAB / Simulink</text>
+  <g font-size="20" fill="#16191d">
+    <rect x="110" y="270" width="250" height="90" rx="10" fill="#0b6e8a"/><text x="135" y="312" fill="#fff" font-weight="600">Level PI</text><text x="135" y="340" fill="#d6edf3" font-size="16">outer loop</text>
+    <rect x="440" y="270" width="250" height="90" rx="10" fill="#0b6e8a"/><text x="465" y="312" fill="#fff" font-weight="600">Flow PI</text><text x="465" y="340" fill="#d6edf3" font-size="16">inner loop · faster</text>
+    <line x1="362" y1="315" x2="432" y2="315" stroke="#0b6e8a" stroke-width="4" marker-end="url(#a)"/>
+    <text x="397" y="300" font-size="16" fill="#5b6470" text-anchor="middle">SP flow</text>
+    <rect x="110" y="420" width="580" height="90" rx="10" fill="#e3f1f5"/><text x="135" y="462" font-weight="600">Plant model (USE_OPC = 0)</text><text x="135" y="490" fill="#5b6470" font-size="16">level G(s) = K/s · flow G(s) = K·e^(−θs)/(τs+1)</text>
+    <rect x="110" y="550" width="580" height="90" rx="10" fill="#e3f1f5"/><text x="135" y="592" font-weight="600">OPC UA client (USE_OPC = 1)</text><text x="135" y="620" fill="#5b6470" font-size="16">read PV · write MV · symbolic node names</text>
+  </g>
+  <text x="110" y="690" font-size="17" fill="#5b6470">Tune in simulation first, then run the same controller on hardware</text>
+
+  <!-- link -->
+  <line x1="692" y1="595" x2="842" y2="595" stroke="#0b6e8a" stroke-width="4" marker-end="url(#a)"/>
+  <line x1="842" y1="625" x2="698" y2="625" stroke="#0b6e8a" stroke-width="4" marker-end="url(#a)"/>
+  <text x="767" y="580" font-size="17" fill="#0b6e8a" text-anchor="middle">OPC UA :4840</text>
+
+  <!-- Rig -->
+  <rect x="850" y="190" width="670" height="540" rx="14" fill="#fff" stroke="#dde1e6" stroke-width="2"/>
+  <text x="880" y="232" font-size="22" font-weight="700" fill="#16191d">Training rig · S7-1500 · TIA Portal V17</text>
+  <!-- tank -->
+  <rect x="900" y="280" width="170" height="250" rx="8" fill="#fff" stroke="#5b6470" stroke-width="3"/>
+  <rect x="903" y="390" width="164" height="137" fill="#cfe7ef"/>
+  <text x="985" y="560" font-size="18" fill="#16191d" text-anchor="middle">Tank</text>
+  <g font-size="17" fill="#16191d">
+    <circle cx="1130" cy="400" r="34" fill="#fff" stroke="#0b6e8a" stroke-width="3"/><text x="1130" y="406" text-anchor="middle">LT-101</text>
+    <line x1="1070" y1="400" x2="1096" y2="400" stroke="#5b6470" stroke-width="2"/>
+    <!-- pipe -->
+    <polyline points="1070,500 1200,500 1200,640 1460,640 1460,300 1070,300" fill="none" stroke="#5b6470" stroke-width="4"/>
+    <circle cx="1260" cy="640" r="30" fill="#fff" stroke="#5b6470" stroke-width="3"/><text x="1260" y="646" text-anchor="middle" font-size="15">P-101</text>
+    <text x="1260" y="700" text-anchor="middle" font-size="15" fill="#5b6470">pump · VSD</text>
+    <circle cx="1460" cy="520" r="34" fill="#fff" stroke="#0b6e8a" stroke-width="3"/><text x="1460" y="526" text-anchor="middle">FT-101</text>
+    <path d="M1438 365 L1482 365 L1460 400 Z M1438 435 L1482 435 L1460 400 Z" fill="#fff" stroke="#16191d" stroke-width="3" stroke-linejoin="round"/>
+    <text x="1425" y="406" text-anchor="end">FCV-101</text>
+  </g>
+
+  <text x="80" y="820" font-size="20" fill="#5b6470">Course weeks 9–15: P&amp;ID · start-up/shutdown · single loop · open/closed-loop tuning · cascade · capstone</text>
+</svg>

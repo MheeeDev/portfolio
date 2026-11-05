@@ -1,0 +1,80 @@
+---
+import '../styles/global.css';
+import { site } from '../site';
+import { url } from '../lib';
+
+interface Props {
+  title?: string;
+  description?: string;
+  /** Language of the page's main content. Thai articles pass 'th'. */
+  lang?: 'en' | 'th';
+}
+const { title, description = site.tagline, lang = 'en' } = Astro.props;
+const pageTitle = title ? `${title} — ${site.name}` : `${site.name} — ${site.headline}`;
+const path = Astro.url.pathname;
+const canonical = new URL(path, Astro.site);
+const nav = [
+  { href: url('blog/'), label: 'Blog' },
+  { href: url('videos/'), label: 'Videos' },
+  { href: url('projects/'), label: 'Projects' },
+  { href: url('about/'), label: 'About' },
+  { href: url('contact/'), label: 'Contact' },
+];
+---
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <link rel="icon" href={url('favicon.svg')} type="image/svg+xml" />
+    <link rel="alternate" type="application/rss+xml" title={`${site.name} — Blog`} href={url('rss.xml')} />
+    <link rel="sitemap" href={url('sitemap-index.xml')} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <header class="site-header no-print">
+      <div class="wrap bar">
+        <a class="brand" href={url()}>{site.name}</a>
+        <nav aria-label="Main">
+          {nav.map((n) => <a href={n.href} aria-current={path.startsWith(n.href) ? 'page' : undefined}>{n.label}</a>)}
+        </nav>
+      </div>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer class="site-footer no-print">
+      <div class="wrap bar">
+        <span class="muted">© {new Date().getFullYear()} {site.name}</span>
+        <span>
+          <a href={`mailto:${site.email}`}>{site.email}</a>
+          {site.links.map((l) => <> · <a href={l.href} rel="noopener">{l.label}</a></>)}
+          {' · '}<a href={url('rss.xml')}>RSS</a>
+        </span>
+      </div>
+    </footer>
+  </body>
+</html>
+
+<style>
+  .site-header { border-bottom: 1px solid var(--line); background: var(--surface); position: sticky; top: 0; z-index: 10; }
+  .bar { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem 1rem; flex-wrap: wrap; padding-top: 0.8rem; padding-bottom: 0.8rem; }
+  .brand { font-weight: 700; color: var(--text); text-decoration: none; }
+  nav { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; }
+  nav a { color: var(--muted); text-decoration: none; font-weight: 500; }
+  nav a[aria-current='page'], nav a:hover { color: var(--accent); }
+  @media (max-width: 520px) {
+    nav { gap: 0.3rem 0.9rem; font-size: 0.94rem; }
+  }
+  main { min-height: 70vh; }
+  .site-footer { border-top: 1px solid var(--line); margin-top: 4rem; font-size: 0.9rem; }
+</style>

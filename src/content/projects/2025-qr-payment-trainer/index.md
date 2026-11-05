@@ -1,0 +1,94 @@
+---
+title: QR-Payment Vending Trainer — PLC, HMI and IoT Gateway
+summary: A training unit that turns a coin-operated washing machine into a QR-payment machine — FX5U PLC, GOT2000 HMI, IoT2050 MQTT gateway and a web payment front end — with FAT/SAT and a course.
+company: Pranakorn Energy (part-time)
+period: { start: 2025-01, end: 2025-12 } # TODO: confirm real start/end months
+role: Controls lead — bill of materials, electrical drawings, PLC and HMI program, training lessons
+sector: Engineering education — vending and payment automation trainer
+platforms: [Mitsubishi FX5U, GX Works3, GOT2000, Siemens IoT2050, Node-RED, MQTT, Flutter, Node.js, Omise / PromptPay]
+tags: [PLC, HMI, IoT, Education]
+cover: ./cover.svg
+coverAlt: Block diagram of the trainer — coin acceptor and machine I/O on an FX5U PLC with a GOT2000 HMI, an IoT2050 gateway publishing MQTT, and a payment front end.
+highlights:
+  - One trainer covers the whole chain — machine I/O, PLC, HMI, IoT gateway, payment and notifications
+  - 50-item bill of materials, wiring and single-line drawings, and an energy-monitoring panel
+  - Accepted against a FAT/SAT protocol — power, software, backup, communication and diagnostics checks
+  - Turned into a 3-day hands-on course and an online PLC course
+track: education
+featured: true
+---
+
+## Problem
+
+Students learn PLCs on boards of lamps and switches. Real machines on the street now take QR
+payments, report online and send alerts — and none of that is on the lamp board.
+
+The university wanted a trainer built around a real machine: a coin-operated washing machine that
+also accepts QR payments, so students can follow one payment from the phone to the motor.
+
+## My role & scope
+
+I led the controls side of a small team:
+
+- Bill of materials and the datasheet for every device
+- Electrical drawings: wiring diagram, single-line diagram and the energy-monitoring panel
+- Automation architecture
+- FX5U PLC program and GOT2000 HMI screens, step-function flowchart and I/O tests
+- Lessons for the course: PLC basics (I/O and data types), basic commands, and GOT2000 screen design
+
+Teammates built the 3D layout and the payment front end. The trainer is a mobile aluminium frame
+holding the machine, the control panel and the payment hardware.
+
+## Approach
+
+```
+Coin acceptor · buttons · motor ──► FX5U PLC ◄──► GOT2000 HMI
+                                       │
+                                  IoT2050 (Node-RED) ──MQTT──► payment front end · notifications
+                                       │
+Power meter · CT · temperature ────────┘
+```
+
+### Hardware that matches a real machine
+
+24 V DC control power, with a step-down to 12 V for the coin acceptor and the pulse generator. A
+brushless DC motor on a DC drive turns the drum. A UPS, tower lamp, emergency stop and reset
+button, and a managed switch complete the panel. A power meter, a 30/5 A current transformer and a
+temperature transmitter add energy monitoring, so the trainer also teaches metering.
+
+### The PLC owns the machine
+
+The FX5U ladder program handles coin counting, the wash and spin sequence, machine status and the
+emergency stop. The GOT2000 HMI shows the coin count, the wash process and alarm events. The
+payment side sits beside the PLC and talks to it through the gateway, so the machine logic can be
+taught on its own before payment is added.
+
+### Gateway and notifications
+
+The IoT2050 runs Node-RED: it reads the PLC and publishes over MQTT to the payment front end on a
+Raspberry Pi 5. The front end is a Flutter web app that also shows the machine's status; payments
+go through Opn Payments / Omise with PromptPay QR, and a Node.js back end receives the payment
+webhooks over a REST API and passes the result on, with data stored over MQTT. Machine alerts went to a chat service; when LINE Notify was shut down, the
+notification flow moved to Discord.
+
+## Delivery
+
+- FAT/SAT protocol covering each power supply and device, software installation, PLC and HMI
+  backups, PLC–HMI communication, program download and diagnostics
+- User manual for the training unit
+- 3-day course: payment concepts, architecture, safety and maintenance (day 1); PLC programming in
+  GX Works3 and HMI screens in GT Designer (day 2); full integration and a live payment test (day 3)
+- Online course "PLC Basics for Washing Machine Automation" — 10 lessons from wiring to a
+  Node-RED-linked HMI, recorded September–November 2025
+
+## Result
+
+- A trainer students can follow from QR scan to motor, instead of a lamp board
+- The same machine teaches PLC, HMI, IoT gateways, payment and energy metering
+- Documentation that lets the lab maintain it: drawings, BOM, FAT/SAT, manual and videos
+
+## Skills used
+
+Mitsubishi FX5U and GX Works3 · GOT2000 and GT Designer3 · Siemens IoT2050 · Node-RED and MQTT ·
+electrical design (wiring and single-line diagrams, panel layout) · BOM and datasheets · FAT/SAT ·
+writing and teaching hands-on PLC lessons.

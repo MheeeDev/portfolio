@@ -1,0 +1,35 @@
+---
+import { categoryLabel, formatDate, url, type Post } from '../lib';
+
+interface Props { post: Post }
+const { post } = Astro.props;
+const d = post.data;
+const href = url(`blog/${post.id}/`);
+---
+<article class="post" lang={d.lang}>
+  <p class="meta">
+    <time datetime={d.date.toISOString().slice(0, 10)} lang="en">{formatDate(d.date)}</time>
+    <a class="cat" href={url(`blog/category/${d.category}/`)} lang="en">{categoryLabel(d.category)}</a>
+    {d.youtube && <span class="video" lang="en">▶ Video</span>}
+    {d.draft && <span class="draft" lang="en">Draft</span>}
+  </p>
+  <h3><a href={href}>{d.title}</a></h3>
+  <p class="summary">{d.summary}</p>
+  {d.tags.length > 0 && <ul class="tags">{d.tags.map((t) => <li>#{t}</li>)}</ul>}
+</article>
+
+<style>
+  .post { padding: 1.2rem 0; border-bottom: 1px solid var(--line); }
+  .post p, .post h3 { margin: 0; }
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.7rem; font-size: 0.82rem; color: var(--muted); }
+  time { font-family: var(--mono); }
+  .cat { color: var(--accent); font-weight: 600; text-decoration: none; }
+  .video, .draft { font-size: 0.75rem; padding: 0 0.45rem; border-radius: 4px; }
+  .video { background: var(--accent-soft); color: var(--accent); }
+  .draft { background: #fde8c8; color: #7a4a00; }
+  h3 { font-size: 1.15rem; margin-top: 0.35rem !important; }
+  h3 a { color: var(--text); text-decoration: none; }
+  h3 a:hover { color: var(--accent); }
+  .summary { color: var(--muted); margin-top: 0.3rem !important; font-size: 0.96rem; }
+  .tags { list-style: none; padding: 0; margin: 0.5rem 0 0; display: flex; flex-wrap: wrap; gap: 0.2rem 0.7rem; font-size: 0.82rem; color: var(--muted); }
+</style>

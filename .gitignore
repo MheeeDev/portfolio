@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.astro/
+portfolio.pdf
+# Raw notes and unredacted material never go to the public repo
+private/
+
+# Local Claude Code settings
+.claude/

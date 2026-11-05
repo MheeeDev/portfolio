@@ -1,0 +1,105 @@
+---
+import Base from '../layouts/Base.astro';
+import PostCard from '../components/PostCard.astro';
+import ProjectCard from '../components/ProjectCard.astro';
+import VideoCard from '../components/VideoCard.astro';
+import { getPosts, getProjects, url } from '../lib';
+import { credentials, site } from '../site';
+
+const projects = await getProjects();
+const posts = await getPosts();
+// Featured projects if any are marked, otherwise the newest; three either way.
+const featured = projects.filter((p) => p.data.featured);
+const shownProjects = (featured.length ? featured : projects).slice(0, 3);
+const latestPosts = posts.slice(0, 6);
+const latestVideos = posts.filter((p) => p.data.youtube).slice(0, 3);
+const platforms = [...new Set(projects.flatMap((p) => p.data.platforms))];
+---
+<Base>
+  <section class="hero wrap">
+    <p class="eyebrow">{site.location}</p>
+    <h1>{site.name}</h1>
+    <p class="headline">{site.headline}</p>
+    <p class="slogan">{site.slogan}</p>
+    <p class="tagline muted">{site.tagline}</p>
+    <p class="intro" lang="th">{site.intro}</p>
+    <ul class="creds" aria-label="Licence and certifications">
+      {credentials.map((c) => (
+        <li><a href={url('about/#credentials')} title={`${c.title} — ${c.issuer}, ${c.date}`}><span class="tick" aria-hidden="true">✓</span>{c.short}</a></li>
+      ))}
+    </ul>
+    <p class="actions">
+      <a class="btn primary" href={url(posts.length ? 'blog/' : 'projects/')}>{posts.length ? 'Read the blog' : 'See projects'}</a>
+      {posts.length > 0 && <a class="btn" href={url('projects/')}>See projects</a>}
+      <a class="btn" href={url('about/')}>About me</a>
+      {site.cvFile && <a class="btn" href={url(site.cvFile)}>Download CV</a>}
+    </p>
+  </section>
+
+  {latestPosts.length > 0 && (
+    <section class="wrap">
+      <h2>Latest articles <a class="all" href={url('blog/')}>All {posts.length} →</a></h2>
+      <div class="posts">{latestPosts.map((p) => <PostCard post={p} />)}</div>
+    </section>
+  )}
+
+  <section class="wrap">
+    <h2>Featured projects <a class="all" href={url('projects/')}>All {projects.length} →</a></h2>
+    <p class="muted blurb">Control, SCADA and OT/IT systems — plus the training rigs and labs I build for university teaching.</p>
+    <div class="grid">{shownProjects.map((p) => <ProjectCard project={p} />)}</div>
+  </section>
+
+  {latestVideos.length > 0 && (
+    <section class="wrap">
+      <h2>Latest videos <a class="all" href={url('videos/')}>All videos →</a></h2>
+      <div class="grid">{latestVideos.map((p) => <VideoCard post={p} />)}</div>
+    </section>
+  )}
+
+  <section class="wrap about">
+    <h2>About</h2>
+    <p>
+      Automation engineer with three years at system integrators — PLC, HMI and SCADA on Siemens, Rockwell and
+      Ignition, and the software around them. A chemical process engineer by degree, so I read the P&amp;ID before the I/O list.
+      <a href={url('about/')}>More about me →</a>
+    </p>
+    {platforms.length > 0 && (
+      <>
+        <h3>Platforms I work with</h3>
+        <ul class="chips">{platforms.map((p) => <li class="chip">{p}</li>)}</ul>
+      </>
+    )}
+  </section>
+
+  <section class="wrap contact">
+    <h2>Contact</h2>
+    <p>For roles, projects or a question about an article, email is the fastest way to reach me.</p>
+    <p class="actions">
+      <a class="btn primary" href={`mailto:${site.email}`}>{site.email}</a>
+      {site.links.map((l) => <a class="btn" href={l.href} rel="noopener">{l.label} ↗</a>)}
+    </p>
+  </section>
+</Base>
+
+<style>
+  .hero { padding-top: 4rem; padding-bottom: 1rem; }
+  h1 { font-size: clamp(2rem, 6vw, 3.2rem); margin: 0.4rem 0 0.2rem; }
+  .headline { font-size: 1.25rem; font-weight: 600; margin: 0; }
+  .slogan { font-family: var(--mono); color: var(--accent); font-weight: 500; margin: 0.6rem 0 0; }
+  .tagline { max-width: 40rem; }
+  .intro { max-width: 40rem; margin-top: -0.4rem; }
+  .creds { list-style: none; padding: 0; margin: 1.2rem 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
+  .creds a { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.3rem 0.8rem 0.3rem 0.35rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--text); text-decoration: none; font-size: 0.85rem; font-weight: 500; }
+  .creds a:hover { border-color: var(--accent); color: var(--accent); }
+  .tick { display: inline-grid; place-items: center; width: 1.3rem; height: 1.3rem; border-radius: 50%; background: var(--accent); color: var(--surface); font-size: 0.72rem; font-weight: 700; }
+  .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 1.5rem; }
+  section h2 { font-size: 1.2rem; margin: 3rem 0 1rem; }
+  section h2:has(+ .blurb) { margin-bottom: 0.2rem; }
+  .blurb { margin: 0 0 1rem; max-width: 46rem; }
+  .all { font-size: 0.85rem; font-weight: 500; margin-left: 0.6rem; }
+  .posts { max-width: 820px; border-top: 1px solid var(--line); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 1.1rem; }
+  .about p, .contact p { max-width: 46rem; }
+  .about h3 { font-size: 0.95rem; margin: 1.4rem 0 0.6rem; color: var(--muted); }
+  .contact .actions { margin-top: 0.8rem; }
+</style>

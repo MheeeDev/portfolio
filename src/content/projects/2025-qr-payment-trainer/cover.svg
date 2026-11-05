@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#0b6e8a"/></marker>
+  </defs>
+  <rect width="1600" height="900" fill="#f4f7f9"/>
+  <text x="80" y="92" font-size="30" font-weight="700" fill="#16191d">QR-payment vending trainer — system blocks</text>
+  <text x="80" y="132" font-size="22" fill="#5b6470">Coin-operated washing machine + QR payment · PLC, HMI, IoT gateway, energy metering</text>
+
+  <!-- field -->
+  <rect x="80" y="190" width="380" height="560" rx="14" fill="#fff" stroke="#dde1e6" stroke-width="2"/>
+  <text x="110" y="232" font-size="22" font-weight="700" fill="#16191d">Machine &amp; field I/O</text>
+  <g font-size="19" fill="#16191d">
+    <rect x="110" y="260" width="320" height="64" rx="10" fill="#e3f1f5"/><text x="130" y="300">Coin acceptor · 12 V</text>
+    <rect x="110" y="340" width="320" height="64" rx="10" fill="#e3f1f5"/><text x="130" y="380">BLDC motor · DC drive</text>
+    <rect x="110" y="420" width="320" height="64" rx="10" fill="#e3f1f5"/><text x="130" y="460">E-stop · reset · tower lamp</text>
+    <rect x="110" y="500" width="320" height="64" rx="10" fill="#e3f1f5"/><text x="130" y="540">Power meter · CT 30/5 A</text>
+    <rect x="110" y="580" width="320" height="64" rx="10" fill="#e3f1f5"/><text x="130" y="620">Temperature transmitter</text>
+  </g>
+  <text x="110" y="700" font-size="17" fill="#5b6470">24 V DC control · UPS · step-down to 12 V</text>
+
+  <line x1="462" y1="300" x2="552" y2="300" stroke="#0b6e8a" stroke-width="4" marker-end="url(#a)"/>
+
+  <!-- control -->
+  <g font-size="21" fill="#16191d">
+    <rect x="560" y="270" width="420" height="110" rx="12" fill="#0b6e8a"/><text x="590" y="318" fill="#fff" font-weight="600">Mitsubishi FX5U PLC</text><text x="590" y="352" fill="#d6edf3" font-size="17">coin count · wash/spin sequence · alarms</text>
+    <rect x="560" y="420" width="420" height="100" rx="12" fill="#e3f1f5"/><text x="590" y="465" font-weight="600">GOT2000 HMI</text><text x="590" y="495" fill="#5b6470" font-size="17">coins · process status · alarm events</text>
+    <line x1="770" y1="382" x2="770" y2="412" stroke="#0b6e8a" stroke-width="4" marker-end="url(#a)"/>
+    <rect x="560" y="570" width="420" height="100" rx="12" fill="#e3f1f5"/><text x="590" y="615" font-weight="600">Siemens IoT2050</text><text x="590" y="645" fill="#5b6470" font-size="17">Node-RED · reads the PLC</text>
+    <polyline points="980,350 1010,350 1010,620 988,620" fill="none" stroke="#0b6e8a" stroke-width="4" marker-end="url(#a)"/>
+  </g>
+
+  <line x1="982" y1="650" x2="1072" y2="650" stroke="#0b6e8a" stroke-width="4" marker-end="url(#a)"/>
+  <text x="1045" y="690" font-size="17" fill="#0b6e8a" text-anchor="middle">MQTT</text>
+
+  <!-- payment -->
+  <rect x="1080" y="190" width="440" height="560" rx="14" fill="#fff" stroke="#dde1e6" stroke-width="2"/>
+  <text x="1110" y="232" font-size="22" font-weight="700" fill="#16191d">Payment &amp; notifications</text>
+  <g font-size="19" fill="#16191d">
+    <rect x="1110" y="270" width="380" height="64" rx="10" fill="#eef0f3"/><text x="1130" y="310">Customer scans QR</text>
+    <rect x="1110" y="360" width="380" height="64" rx="10" fill="#eef0f3"/><text x="1130" y="400">Payment front end · Raspberry Pi 5</text>
+    <rect x="1110" y="450" width="380" height="64" rx="10" fill="#eef0f3"/><text x="1130" y="490">Credit to the machine</text>
+    <rect x="1110" y="590" width="380" height="64" rx="10" fill="#eef0f3"/><text x="1130" y="630">Alerts → Discord</text>
+  </g>
+
+  <text x="80" y="830" font-size="20" fill="#5b6470">Delivered with BOM · wiring &amp; single-line drawings · FAT/SAT · manual · 3-day course</text>
+</svg>

@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#0b6e8a"/></marker>
+  </defs>
+  <rect width="1600" height="900" fill="#f4f7f9"/>
+  <text x="80" y="92" font-size="30" font-weight="700" fill="#16191d">Industrial automation course — learning path</text>
+  <text x="80" y="132" font-size="22" fill="#5b6470">6 sections · 29 lessons · one level loop and one flow loop from model to PLC</text>
+
+  <g font-size="21" fill="#16191d">
+    <rect x="80" y="200" width="440" height="200" rx="14" fill="#fff" stroke="#dde1e6" stroke-width="2"/>
+    <text x="110" y="250" font-size="40" font-weight="700" fill="#0b6e8a">1</text>
+    <text x="160" y="248" font-weight="600">MATLAB &amp; Simulink</text>
+    <text x="110" y="300" fill="#5b6470" font-size="18">Plant modelling · solvers</text>
+    <text x="110" y="330" fill="#5b6470" font-size="18">Workshop: first-order tank</text>
+    <text x="110" y="375" fill="#0b6e8a" font-size="16">6 lessons</text>
+
+    <rect x="580" y="200" width="440" height="200" rx="14" fill="#fff" stroke="#dde1e6" stroke-width="2"/>
+    <text x="610" y="250" font-size="40" font-weight="700" fill="#0b6e8a">2</text>
+    <text x="660" y="248" font-weight="600">PID controller design</text>
+    <text x="610" y="300" fill="#5b6470" font-size="18">Z-N · manual · PID Tuner</text>
+    <text x="610" y="330" fill="#5b6470" font-size="18">Level (K/s) and flow (FOPDT)</text>
+    <text x="610" y="375" fill="#0b6e8a" font-size="16">7 lessons</text>
+
+    <rect x="1080" y="200" width="440" height="200" rx="14" fill="#fff" stroke="#dde1e6" stroke-width="2"/>
+    <text x="1110" y="250" font-size="40" font-weight="700" fill="#0b6e8a">3</text>
+    <text x="1160" y="248" font-weight="600">Siemens TIA Portal V17</text>
+    <text x="1110" y="300" fill="#5b6470" font-size="18">S7-1500 · PID_Compact</text>
+    <text x="1110" y="330" fill="#5b6470" font-size="18">4–20 mA scaling · trends</text>
+    <text x="1110" y="375" fill="#0b6e8a" font-size="16">6 lessons</text>
+
+    <rect x="1080" y="480" width="440" height="200" rx="14" fill="#fff" stroke="#dde1e6" stroke-width="2"/>
+    <text x="1110" y="530" font-size="40" font-weight="700" fill="#0b6e8a">4</text>
+    <text x="1160" y="528" font-weight="600">OPC UA communication</text>
+    <text x="1110" y="580" fill="#5b6470" font-size="18">Server on the PLC · UaExpert</text>
+    <text x="1110" y="610" fill="#5b6470" font-size="18">MATLAB &amp; Simulink client</text>
+    <text x="1110" y="655" fill="#0b6e8a" font-size="16">6 lessons</text>
+
+    <rect x="580" y="480" width="440" height="200" rx="14" fill="#fff" stroke="#dde1e6" stroke-width="2"/>
+    <text x="610" y="530" font-size="40" font-weight="700" fill="#0b6e8a">5</text>
+    <text x="660" y="528" font-weight="600">Hardware-in-the-loop</text>
+    <text x="610" y="580" fill="#5b6470" font-size="18">Co-simulation with the PLC</text>
+    <text x="610" y="610" fill="#5b6470" font-size="18">Performance analysis</text>
+    <text x="610" y="655" fill="#0b6e8a" font-size="16">4 lessons</text>
+
+    <rect x="80" y="480" width="440" height="200" rx="14" fill="#0b6e8a"/>
+    <text x="110" y="530" font-size="40" font-weight="700" fill="#fff">6</text>
+    <text x="160" y="528" font-weight="600" fill="#fff">Final projects</text>
+    <text x="110" y="580" fill="#d6edf3" font-size="18">Level and flow — full workflow</text>
+    <text x="110" y="610" fill="#d6edf3" font-size="18">Report</text>
+    <text x="110" y="655" fill="#d6edf3" font-size="16">3 lessons</text>
+  </g>
+  <line x1="522" y1="300" x2="572" y2="300" stroke="#0b6e8a" stroke-width="4" marker-end="url(#a)"/>
+  <line x1="1022" y1="300" x2="1072" y2="300" stroke="#0b6e8a" stroke-width="4" marker-end="url(#a)"/>
+  <line x1="1300" y1="402" x2="1300" y2="472" stroke="#0b6e8a" stroke-width="4" marker-end="url(#a)"/>
+  <line x1="1078" y1="580" x2="1028" y2="580" stroke="#0b6e8a" stroke-width="4" marker-end="url(#a)"/>
+  <line x1="578" y1="580" x2="528" y2="580" stroke="#0b6e8a" stroke-width="4" marker-end="url(#a)"/>
+
+  <g font-size="19">
+    <rect x="80" y="760" width="22" height="22" rx="4" fill="#e3f1f5" stroke="#0b6e8a"/><text x="112" y="778" fill="#5b6470">Theory</text>
+    <rect x="220" y="760" width="22" height="22" rx="4" fill="#e3f1f5" stroke="#0b6e8a"/><text x="252" y="778" fill="#5b6470">Demo</text>
+    <rect x="350" y="760" width="22" height="22" rx="4" fill="#e3f1f5" stroke="#0b6e8a"/><text x="382" y="778" fill="#5b6470">Lab</text>
+    <rect x="460" y="760" width="22" height="22" rx="4" fill="#0b6e8a"/><text x="492" y="778" fill="#5b6470">Project — every lesson is labelled with its type</text>
+  </g>
+</svg>

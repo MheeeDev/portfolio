@@ -1,0 +1,104 @@
+---
+import Base from '../../layouts/Base.astro';
+import ProjectCard from '../../components/ProjectCard.astro';
+import { byTrack, getProjects, slugify, tracks, url } from '../../lib';
+
+const projects = await getProjects();
+const sections = tracks.map((t) => ({ ...t, list: byTrack(projects, t.id) })).filter((s) => s.list.length);
+// Each tag button knows which tracks use it, so the list can shrink to the selected track.
+const tags = [...new Set(projects.flatMap((p) => p.data.tags))].sort().map((t) => ({
+  label: t,
+  slug: slugify(t),
+  tracks: sections.filter((s) => s.list.some((p) => p.data.tags.includes(t))).map((s) => s.id).join(' '),
+}));
+---
+<Base title="Projects" description="Automation, SCADA and OT/IT integration projects, plus education and lab systems.">
+  <section class="wrap head">
+    <h1>Projects</h1>
+    <p class="muted">{projects.length} projects. Client names are withheld and screenshots are redacted.</p>
+    <p class="no-print"><a href={url('print/')}>Printable version — all projects on one page</a></p>
+    {sections.length > 1 && (
+      <div class="tabs no-print" role="tablist" aria-label="Project group">
+        <a role="tab" href="#all" data-track="" aria-selected="true">All <span class="n">{projects.length}</span></a>
+        {sections.map((s) => (
+          <a role="tab" href={`#${s.id}`} data-track={s.id} aria-selected="false">{s.title} <span class="n">{s.list.length}</span></a>
+        ))}
+      </div>
+    )}
+    {tags.length > 1 && (
+      <div class="filters no-print" role="group" aria-label="Filter by tag">
+        <button class="btn primary" data-tag="">All tags</button>
+        {tags.map((t) => <button class="btn" data-tag={t.slug} data-tracks={t.tracks}>{t.label}</button>)}
+      </div>
+    )}
+  </section>
+  {sections.map((s) => (
+    <section class="wrap track" data-track={s.id}>
+      <h2>{s.title} <span class="muted count">· {s.list.length}</span></h2>
+      <p class="muted blurb">{s.blurb}</p>
+      <div class="grid">{s.list.map((p) => <ProjectCard project={p} />)}</div>
+    </section>
+  ))}
+</Base>
+
+<script>
+  const tabs = document.querySelectorAll<HTMLAnchorElement>('.tabs [role="tab"]');
+  const buttons = document.querySelectorAll<HTMLButtonElement>('.filters button');
+  const sections = document.querySelectorAll<HTMLElement>('.track');
+  const known = [...tabs].map((t) => t.dataset.track ?? '');
+  let track = '';
+  let tag = '';
+
+  function apply() {
+    tabs.forEach((t) => t.setAttribute('aria-selected', String((t.dataset.track ?? '') === track)));
+    buttons.forEach((b) => {
+      const inTrack = !b.dataset.tracks || track === '' || b.dataset.tracks.split(' ').includes(track);
+      b.hidden = !inTrack;
+      b.classList.toggle('primary', (b.dataset.tag ?? '') === tag);
+    });
+    sections.forEach((s) => {
+      const cards = s.querySelectorAll<HTMLElement>('.card');
+      cards.forEach((c) => {
+        c.hidden = tag !== '' && !(c.dataset.tags ?? '').split(' ').includes(tag);
+      });
+      s.hidden = (track !== '' && s.dataset.track !== track) || ![...cards].some((c) => !c.hidden);
+    });
+  }
+
+  function fromHash() {
+    const h = location.hash.slice(1);
+    track = known.includes(h) ? h : '';
+    // Drop a tag that the newly selected track does not use.
+    const current = [...buttons].find((b) => b.dataset.tag === tag);
+    if (current?.dataset.tracks && track && !current.dataset.tracks.split(' ').includes(track)) tag = '';
+    apply();
+  }
+
+  buttons.forEach((b) =>
+    b.addEventListener('click', () => {
+      tag = b.dataset.tag ?? '';
+      apply();
+    }),
+  );
+  window.addEventListener('hashchange', fromHash);
+  fromHash();
+</script>
+
+<style>
+  .head { padding-top: 2.5rem; }
+  h1 { margin-bottom: 0.2rem; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 1.4rem 0 0.4rem; border-bottom: 1px solid var(--line); }
+  .tabs a { padding: 0.55rem 1rem; color: var(--muted); text-decoration: none; font-weight: 600; border-bottom: 3px solid transparent; margin-bottom: -1px; }
+  .tabs a:hover { color: var(--text); }
+  .tabs a[aria-selected='true'] { color: var(--accent); border-bottom-color: var(--accent); }
+  .tabs .n { font-weight: 400; font-size: 0.85em; color: var(--muted); margin-left: 0.2rem; }
+  .filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 1rem 0 0.6rem; }
+  .filters .btn { padding: 0.25rem 0.8rem; font-size: 0.82rem; }
+  .filters .btn[hidden] { display: none; }
+  .track h2 { font-size: 1.2rem; margin: 2rem 0 0.2rem; }
+  .count { font-weight: 400; }
+  .blurb { margin: 0 0 1rem; max-width: 46rem; }
+  .track[hidden] { display: none; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 1.1rem; }
+  .grid :global(.card[hidden]) { display: none; }
+</style>

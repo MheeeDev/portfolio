@@ -1,0 +1,57 @@
+---
+// A YouTube clip that shows only its thumbnail until it is clicked, then loads the player from
+// youtube-nocookie.com. Nothing from YouTube runs (and no cookies are set) before the click.
+// In an .mdx article:  <YouTube id="0qIJE_-dmCQ" title="Ziegler–Nichols tuning in TIA Portal" />
+import { youtubeThumb } from '../lib';
+
+interface Props {
+  /** The 11-character video ID from the YouTube URL. */
+  id: string;
+  title?: string;
+  /** Start time in seconds. */
+  start?: number;
+}
+const { id, title = 'YouTube video', start } = Astro.props;
+const watch = `https://www.youtube.com/watch?v=${id}${start ? `&t=${start}s` : ''}`;
+---
+<figure class="yt">
+  <div class="frame" data-id={id} data-title={title} data-start={start}>
+    <button type="button" aria-label={`Play video: ${title}`}>
+      <img src={youtubeThumb(id)} alt="" width="480" height="360" loading="lazy" decoding="async" />
+      <span class="icon" aria-hidden="true"></span>
+    </button>
+  </div>
+  <figcaption><a href={watch} rel="noopener" target="_blank">Watch on YouTube ↗</a></figcaption>
+</figure>
+
+<script>
+  document.querySelectorAll<HTMLElement>('.yt .frame').forEach((frame) => {
+    frame.querySelector('button')?.addEventListener('click', () => {
+      const { id = '', title = '', start } = frame.dataset;
+      const params = new URLSearchParams({ autoplay: '1', rel: '0' });
+      if (start) params.set('start', start);
+      const iframe = document.createElement('iframe');
+      iframe.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?${params}`;
+      iframe.title = title;
+      iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+      iframe.allowFullscreen = true;
+      iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+      frame.replaceChildren(iframe);
+      iframe.focus();
+    }, { once: true });
+  });
+</script>
+
+<style>
+  .yt { margin: 1.5rem 0; }
+  .frame { position: relative; aspect-ratio: 16 / 9; background: #000; border-radius: var(--radius); overflow: hidden; }
+  .frame button { all: unset; position: absolute; inset: 0; cursor: pointer; }
+  .frame button:focus-visible { outline: 3px solid var(--accent); outline-offset: -3px; }
+  /* hqdefault is 4:3 with black bars; covering a 16:9 box crops them off. */
+  .frame img { width: 100%; height: 100%; object-fit: cover; border: 0 !important; margin: 0 !important; border-radius: 0 !important; }
+  .icon { position: absolute; left: 50%; top: 50%; width: 68px; height: 48px; transform: translate(-50%, -50%); background: rgb(0 0 0 / 0.7); border-radius: 12px; transition: background 0.15s; }
+  .icon::after { content: ''; position: absolute; left: 27px; top: 14px; border-style: solid; border-width: 10px 0 10px 18px; border-color: transparent transparent transparent #fff; }
+  .frame button:hover .icon, .frame button:focus-visible .icon { background: #f00; }
+  .frame :global(iframe) { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  figcaption { font-size: 0.85rem; margin-top: 0.4rem; text-align: right; }
+</style>

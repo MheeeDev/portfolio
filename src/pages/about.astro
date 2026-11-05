@@ -1,0 +1,130 @@
+---
+import Base from '../layouts/Base.astro';
+import { credentials, site } from '../site';
+import { url } from '../lib';
+
+// Job history, newest first. Keep titles identical to the CV.
+const experience = [
+  {
+    title: 'Automation Engineer',
+    company: 'MIAC Automation Co., Ltd., Thailand',
+    period: 'May 2025 – Present',
+    text: 'System integrator — turnkey control and SCADA systems for utility, manufacturing, food and energy plants. Ignition, Rockwell, FactoryTalk Optix, MySQL. Author of the company engineering standards.',
+  },
+  {
+    // TODO: confirm start month — planning files show Jan 2025; the written part-time contract starts Aug 2025
+    title: 'Part-time Engineer — Education & Lab Systems',
+    company: 'Pranakorn Energy Co., Ltd., Thailand',
+    period: 'Jan 2025 – Present',
+    text: 'Weekend role alongside a university process-control professor. Built training rigs and the S7-1500 ↔ Simulink digital twin used in class, wrote and recorded an online automation course, and built the AWS cloud lab (InfluxDB, Grafana, Tailscale) that students stream their Simulink runs into. Also a QR-payment vending trainer: FX5U and GOT2000, IoT2050 with MQTT, a Flutter web front end, Node.js webhooks and Omise / PromptPay payments.',
+  },
+  {
+    title: 'Project Engineer / Programmer',
+    company: 'P.A.M Engineering & Automation Co., Ltd., Thailand',
+    period: 'Sep 2023 – Jan 2025',
+    text: 'Siemens PLC and HMI work through to on-site commissioning: the full PLC program and HMI for a big-bag filling line in a vegetable-oil plant, start to end of line; the revised PLC program and conveyor and line HMI screens for a brewery keg-line retrofit from S7-300 to S7-1500; PUT/GET data exchange between an S7-1200 and an S7-300 in a dairy plant; and energy monitoring with electricity cost calculation for a hospital in Energy Manager PRO.',
+  },
+  {
+    title: 'Engineering Intern',
+    company: 'P.A.M Engineering & Automation Co., Ltd., Thailand',
+    period: 'May 2023 – Sep 2023',
+    text: 'PLC and HMI development, testing and support on live projects: a WinCC client/server SCADA for a beverage plant’s water treatment, installation and service visits, Siemens spare parts, and hands-on PLC and HMI training courses for a university.',
+  },
+];
+
+const skills = [
+  ['HMI / SCADA', 'Ignition Perspective & Vision · WinCC Unified (incl. web client) · WinCC client/server · SIMATIC Comfort and KTP panels · FactoryTalk Optix (C# / .NET) · FactoryTalk View ME · GOT2000 · Siemens Energy Manager PRO'],
+  ['Control systems', 'Siemens TIA Portal V17 (LAD, STL, SCL), S7-1200 / S7-1500, S7-300 migration · Rockwell Studio 5000, ControlLogix / CompactLogix · Mitsubishi FX5U and GX Works3 · AOI and control-module libraries · Pilz safety relays · Danfoss, ABB, Schneider and Mitsubishi drives · brushed and brushless DC motors · Siemens Industrial Edge'],
+  ['Integration', 'OPC UA · MQTT · Node-RED · S7 communication (PUT/GET) · Modbus TCP/RTU · EtherNet/IP · PROFINET · PROFIBUS · SENTRON power meters · protocol gateways · redundant ring networks'],
+  ['Software & data', 'C# / .NET · Python (SciPy, pandas, Streamlit, FastAPI) · Flutter web apps · Node.js webhooks and REST APIs · payment gateways (Opn Payments / Omise, PromptPay) · SQL / MySQL / PostgreSQL · InfluxDB · Grafana'],
+  ['Design & process engineering', 'Electrical wiring and single-line diagrams · bills of materials · energy calculation and electricity cost · SolidWorks 3D · SolidPlant P&ID · Aspen Plus (Engineering, Energy Analyzer, Exchanger Design & Rating, capital cost estimation)'],
+  ['Cloud & infrastructure', 'AWS (EC2, S3, IAM, CloudWatch) · Docker Compose · Tailscale VPN and ACLs · Linux server hardening · backups with restore tests'],
+  ['Teaching', 'Course design and video lessons · hands-on lab handouts · training rigs with FAT/SAT protocols · bilingual (EN/TH) runbooks'],
+  ['Process control', 'FOPDT identification · IMC λ-tuning · cascade loops · MPC · Simulink digital twins'],
+  ['Engineering practice', 'Site survey and retrofits on running lines · Sequence of Operation · PackML / ISA-88 program structure · ISA-5.5 HMI colours · I/O and schematic review · FAT / SAT · commissioning · operator training · engineering standards'],
+  ['Ways of working', 'Plan–Do–Check–Act on site · safety checks before every job · teamwork and leadership · problem solving under production pressure · time management · clear communication with operators and clients'],
+];
+---
+<Base title="About" description={`${site.name} — ${site.headline}`}>
+  <div class="wrap page">
+    <h1>About</h1>
+    <p class="lead">
+      Automation engineer with three years at system integrators, delivering control logic, HMI and SCADA
+      applications on Siemens, Rockwell and Ignition — and the software around them: C#/.NET HMI code, OPC UA,
+      MQTT, historians and databases.
+    </p>
+    <p>
+      My degree is in chemical process engineering. That means I read the P&amp;ID before the I/O list, and I
+      build faceplates and alarms for the people who run the process. I work through the whole delivery:
+      Sequence of Operation, PLC and SCADA, FAT, commissioning, SAT and operator training.
+    </p>
+    <p class="actions">
+      <a class="btn primary" href={`mailto:${site.email}`}>Email me</a>
+      {site.cvFile && <a class="btn" href={url(site.cvFile)}>Download CV (PDF)</a>}
+      <a class="btn" href={url('projects/')}>See projects</a>
+    </p>
+
+    <h2>Experience</h2>
+    <ol class="timeline">
+      {experience.map((e) => (
+        <li>
+          <p class="eyebrow">{e.period}</p>
+          <h3>{e.title}</h3>
+          <p class="muted company">{e.company}</p>
+          <p>{e.text}</p>
+        </li>
+      ))}
+    </ol>
+
+    <h2>Skills</h2>
+    <dl class="skills">
+      {skills.map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}
+    </dl>
+
+    <h2 id="credentials">Licence &amp; certifications</h2>
+    <div class="creds">
+      {credentials.map((c) => (
+        <article class="cred">
+          <p class="cred-top"><span class="kind">{c.kind}</span><span class="date">{c.date}</span></p>
+          <h3>{c.title}</h3>
+          <p class="issuer">{c.issuer}</p>
+          <p class="detail">{c.detail}</p>
+          {c.file && <p class="view"><a href={url(c.file)} target="_blank" rel="noopener">View certificate →</a></p>}
+        </article>
+      ))}
+    </div>
+
+    <h2>Education &amp; publications</h2>
+    <ul>
+      <li><strong>B.Eng. Chemical Process Engineering and Technology</strong> — KMUTNB, Rayong Campus (2018–2023). Thesis: <a href={url('projects/2023-thesis-mpc-based-pid/')}><em>Early-stage design and implementation of a model predictive control (MPC) based PID controller for common industrial applications — Phase I</em></a>.</li>
+      <li>Co-author, <em>Digital-Twin-Oriented Pedagogical Integration of BatchSep for Dynamic Modeling and Validation of MeOH/H₂O Batch Distillation</em>, TIChE 2026, Pattaya.</li>
+      <li><a href="https://youtube.com/@sureeporn.k" rel="noopener">YouTube channel</a> — 90+ videos on PLC, OPC UA, digital twins and process control.</li>
+    </ul>
+  </div>
+</Base>
+
+<style>
+  .page { max-width: 820px; padding-top: 2.5rem; }
+  .lead { font-size: 1.15rem; }
+  .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  h2 { font-size: 1.3rem; margin-top: 2.8rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+  .timeline { list-style: none; padding: 0; margin: 0; border-left: 2px solid var(--line); }
+  .timeline li { padding: 0 0 1.4rem 1.2rem; position: relative; }
+  .timeline li::before { content: ''; position: absolute; left: -7px; top: 0.35rem; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); }
+  .timeline h3 { margin: 0.1rem 0 0; font-size: 1.05rem; }
+  .timeline p { margin: 0.2rem 0; }
+  .company { font-size: 0.92rem; }
+  .skills { display: grid; gap: 0.9rem; }
+  .skills dt { font-weight: 600; }
+  .skills dd { margin: 0.1rem 0 0; color: var(--muted); }
+  .creds { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 0.9rem; }
+  .cred { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: var(--radius); padding: 0.9rem 1.1rem 1rem; display: flex; flex-direction: column; }
+  .cred p, .cred h3 { margin: 0; }
+  .cred-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.45rem !important; }
+  .kind { font-family: var(--mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); background: var(--accent-soft); padding: 0.1rem 0.5rem; border-radius: 4px; }
+  .date { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); }
+  .cred h3 { font-size: 1rem; line-height: 1.35; }
+  .issuer { font-size: 0.88rem; color: var(--muted); margin-top: 0.15rem !important; }
+  .detail { font-size: 0.9rem; margin-top: 0.5rem !important; }
+  .view { margin-top: auto !important; padding-top: 0.6rem; font-size: 0.88rem; font-weight: 600; }
+</style>

@@ -1,0 +1,55 @@
+---
+// Every published project on one page, one project per printed page. `npm run pdf` prints this.
+import Base from '../layouts/Base.astro';
+import ProjectDetail from '../components/ProjectDetail.astro';
+import { byTrack, getProjects, formatPeriod, tracks } from '../lib';
+import { credentials, site } from '../site';
+
+const projects = await getProjects();
+const sections = tracks.map((t) => ({ ...t, list: byTrack(projects, t.id) })).filter((s) => s.list.length);
+---
+<Base title="Portfolio (print)">
+  <div class="wrap">
+    <section class="cover-sheet">
+      <p class="eyebrow">Project portfolio</p>
+      <h1>{site.name}</h1>
+      <p class="headline">{site.headline}</p>
+      <p class="muted">{site.email} · {site.location}</p>
+      <h2>Licence &amp; certifications</h2>
+      <ul class="creds">
+        {credentials.map((c) => <li><strong>{c.title}</strong> <span class="muted">— {c.issuer}, {c.date}</span></li>)}
+      </ul>
+      <h2>Contents</h2>
+      {sections.map((s) => (
+        <>
+          <h3>{s.title}</h3>
+          <ol>
+            {s.list.map((p) => (
+              <li><strong>{p.data.title}</strong> <span class="muted">— {p.data.company}, {formatPeriod(p.data.period)}</span></li>
+            ))}
+          </ol>
+        </>
+      ))}
+      <p class="muted note">Client names are withheld and screenshots are redacted.</p>
+    </section>
+    {projects.map((p) => (
+      <section class="sheet"><ProjectDetail project={p} /></section>
+    ))}
+  </div>
+</Base>
+
+<style>
+  .cover-sheet { max-width: 820px; margin: 0 auto; padding: 3rem 0; }
+  .cover-sheet h1 { font-size: 2.4rem; margin: 0.3rem 0 0.2rem; }
+  .headline { font-size: 1.2rem; font-weight: 600; margin: 0 0 0.3rem; }
+  .cover-sheet h2 { margin-top: 2.5rem; font-size: 1.1rem; }
+  .cover-sheet h3 { margin: 1.2rem 0 0.4rem; font-size: 0.95rem; color: var(--muted); }
+  .cover-sheet li { margin-bottom: 0.4rem; }
+  .creds { padding-left: 1.2rem; }
+  .note { margin-top: 2rem; font-size: 0.88rem; }
+  .sheet { padding: 3rem 0; border-top: 1px solid var(--line); }
+  @media print {
+    .cover-sheet { padding-top: 0; }
+    .sheet { break-before: page; border: 0; padding: 0; }
+  }
+</style>

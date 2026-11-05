@@ -1,0 +1,33 @@
+---
+import { Image } from 'astro:assets';
+import { formatPeriod, slugify, url, type Project } from '../lib';
+
+interface Props { project: Project }
+const { project } = Astro.props;
+const d = project.data;
+---
+<article class="card" data-tags={d.tags.map(slugify).join(' ')}>
+  <a href={url(`projects/${project.id}/`)} class="cover" tabindex="-1" aria-hidden="true">
+    <Image src={d.cover} alt="" width={720} />
+  </a>
+  <div class="body">
+    <p class="eyebrow">{d.sector}</p>
+    <h3><a href={url(`projects/${project.id}/`)}>{d.title}</a></h3>
+    <p class="summary">{d.summary}</p>
+    <p class="meta muted">{d.company} · {formatPeriod(d.period)}</p>
+    <ul class="chips">{d.platforms.slice(0, 4).map((p) => <li class="chip">{p}</li>)}</ul>
+  </div>
+</article>
+
+<style>
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; display: flex; flex-direction: column; }
+  .cover { display: block; aspect-ratio: 16 / 9; background: var(--chip); border-bottom: 1px solid var(--line); }
+  .cover :global(img) { width: 100%; height: 100%; object-fit: cover; }
+  .body { padding: 1rem 1.1rem 1.2rem; display: flex; flex-direction: column; gap: 0.4rem; flex: 1; }
+  .body p, .body h3 { margin: 0; }
+  h3 { font-size: 1.08rem; }
+  h3 a { color: var(--text); text-decoration: none; }
+  h3 a:hover { color: var(--accent); }
+  .summary { font-size: 0.94rem; }
+  .meta { font-size: 0.85rem; margin-top: auto !important; padding-top: 0.4rem; }
+</style>
