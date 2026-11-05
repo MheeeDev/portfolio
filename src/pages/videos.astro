@@ -1,30 +1,71 @@
 ---
 // Every article with a main clip (`youtube:` in its frontmatter), newest first. One clip = one article.
 import Base from '../layouts/Base.astro';
+import PageHero from '../components/PageHero.astro';
 import VideoCard from '../components/VideoCard.astro';
-import { getPosts } from '../lib';
+import YouTube from '../components/YouTube.astro';
+import { categoryLabel, formatDate, getPosts, url } from '../lib';
 import { site } from '../site';
 
-const videos = (await getPosts()).filter((p) => p.data.youtube);
+const [latest, ...rest] = (await getPosts()).filter((p) => p.data.youtube);
 const channel = site.links.find((l) => l.label === 'YouTube');
 ---
 <Base title="Videos" description="Automation videos — each one comes with an article that explains it step by step.">
-  <section class="wrap page">
-    <h1>Videos</h1>
-    <p class="muted intro" lang="th">ทุกคลิปมีบทความอธิบายประกอบ กดที่คลิปเพื่ออ่านพร้อมดูได้เลย</p>
-    {channel && <p><a class="btn" href={channel.href} rel="noopener">YouTube channel ↗</a></p>}
-    {videos.length > 0 ? (
-      <div class="grid">{videos.map((p) => <VideoCard post={p} />)}</div>
+  <PageHero eyebrow="Videos" title="วิดีโอ" titleLang="th" subtitle="ทุกคลิปมีบทความอธิบายประกอบ ดูคลิปแล้วอ่านต่อได้ทันที" lang="th">
+    {channel && <a class="btn big" href={channel.href} rel="noopener">▶ YouTube channel ↗</a>}
+  </PageHero>
+
+  <section class="wrap wide body">
+    {latest ? (
+      <>
+        <article class="feature" lang={latest.data.lang}>
+          <div class="player"><YouTube id={latest.data.youtube!} title={latest.data.title} /></div>
+          <div class="info">
+            <p class="meta" lang="en">
+              <span class="badge" lang="th">ล่าสุด</span>
+              <time datetime={latest.data.date.toISOString().slice(0, 10)}>{formatDate(latest.data.date)}</time>
+              <span class="cat">{categoryLabel(latest.data.category)}</span>
+            </p>
+            <h2><a href={url(`blog/${latest.id}/`)}>{latest.data.title}</a></h2>
+            <p class="muted">{latest.data.summary}</p>
+            <p><a class="btn primary big" href={url(`blog/${latest.id}/`)} lang="th">อ่านบทความประกอบ →</a></p>
+          </div>
+        </article>
+        {rest.length > 0 && (
+          <>
+            <h2 class="section-title more" lang="th">คลิปทั้งหมด</h2>
+            <div class="grid">{rest.map((p) => <VideoCard post={p} />)}</div>
+          </>
+        )}
+      </>
     ) : (
-      <p class="empty muted" lang="th">ยังไม่มีคลิป เร็ว ๆ นี้ครับ</p>
+      <div class="empty">
+        <p class="big-mark" aria-hidden="true">🎬</p>
+        <h2 lang="th">คลิปแรกพร้อมบทความกำลังมา</h2>
+        <p class="muted" lang="th">ระหว่างนี้ดูคลิปเก่า ๆ กว่า 90 คลิปบนช่อง YouTube ได้เลยครับ</p>
+        {channel && <p class="actions"><a class="btn primary big" href={channel.href} rel="noopener">Open YouTube ↗</a></p>}
+      </div>
     )}
   </section>
 </Base>
 
 <style>
-  .page { padding-top: 2.5rem; }
-  h1 { margin-bottom: 0.2rem; }
-  .intro { margin-top: 0; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 1.1rem; margin-top: 1.5rem; }
-  .empty { padding: 2rem 0; }
+  .body { padding-top: 3rem; }
+  .feature { display: grid; grid-template-columns: 1.6fr 1fr; gap: 2.5rem; align-items: center; }
+  @media (max-width: 900px) { .feature { grid-template-columns: 1fr; gap: 1rem; } }
+  .player :global(.yt) { margin: 0; }
+  .player :global(.frame) { border-radius: 18px; box-shadow: var(--shadow); }
+  .info h2 { font-size: clamp(1.4rem, 2.8vw, 2rem); margin: 0.7rem 0 0.6rem; }
+  .info h2 a { color: var(--text); text-decoration: none; }
+  .info h2 a:hover { color: var(--accent); }
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.8rem; font-size: 0.84rem; color: var(--muted); margin: 0; }
+  .meta time { font-family: var(--mono); }
+  .badge { background: var(--accent-soft); color: var(--accent); border-radius: 6px; padding: 0.05rem 0.55rem; font-weight: 600; }
+  .cat { color: var(--accent); font-weight: 600; }
+  .more { margin-top: 4rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 1.4rem; }
+  .empty { text-align: center; padding: 4rem 1rem; border: 1px dashed var(--line); border-radius: 20px; }
+  .big-mark { font-size: 2.6rem; margin: 0; }
+  .empty h2 { margin: 0.6rem 0 0.2rem; font-size: 1.6rem; }
+  .actions { display: flex; justify-content: center; margin-top: 1.5rem; }
 </style>

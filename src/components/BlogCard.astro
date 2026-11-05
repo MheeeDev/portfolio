@@ -1,0 +1,62 @@
+---
+// An article as a card with its picture on top: the cover, the clip's thumbnail, or a category panel.
+import { Image } from 'astro:assets';
+import { categoryLabel, formatDate, url, youtubeThumb, type Post } from '../lib';
+
+interface Props { post: Post; big?: boolean }
+const { post, big = false } = Astro.props;
+const d = post.data;
+const href = url(`blog/${post.id}/`);
+---
+<article class:list={['bcard', 'spot', { big }]} lang={d.lang}>
+  <a class="thumb" href={href} tabindex="-1" aria-hidden="true">
+    {d.cover
+      ? <Image src={d.cover} alt="" width={big ? 1200 : 720} />
+      : d.youtube
+        ? <img src={youtubeThumb(d.youtube)} alt="" width="480" height="360" loading="lazy" decoding="async" />
+        : <span class="fallback" lang="en"><span>{categoryLabel(d.category)}</span></span>}
+    {d.youtube && <span class="play"></span>}
+  </a>
+  <div class="body">
+    <p class="meta" lang="en">
+      <time datetime={d.date.toISOString().slice(0, 10)}>{formatDate(d.date)}</time>
+      <a class="cat" href={url(`blog/category/${d.category}/`)}>{categoryLabel(d.category)}</a>
+      {d.draft && <span class="draft">Draft</span>}
+    </p>
+    <h3><a href={href}>{d.title}</a></h3>
+    <p class="summary">{d.summary}</p>
+    {d.tags.length > 0 && <ul class="tags">{d.tags.slice(0, 4).map((t) => <li>#{t}</li>)}</ul>}
+  </div>
+</article>
+
+<style>
+  .bcard { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; box-shadow: var(--shadow); transition: transform 0.25s, border-color 0.25s; }
+  .bcard:hover { transform: translateY(-4px); border-color: var(--accent); }
+  .thumb { position: relative; display: block; aspect-ratio: 16 / 9; background: #000; overflow: hidden; }
+  .thumb :global(img) { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s; }
+  .bcard:hover .thumb :global(img) { transform: scale(1.04); }
+  .fallback { display: grid; place-items: center; width: 100%; height: 100%; background: radial-gradient(circle at 30% 20%, var(--accent-soft), var(--surface) 70%); }
+  .fallback span { font-family: var(--mono); font-size: 1.5rem; color: var(--accent); }
+  .play { position: absolute; left: 50%; top: 50%; width: 58px; height: 40px; transform: translate(-50%, -50%); background: rgb(0 0 0 / 0.7); border-radius: 10px; }
+  .play::after { content: ''; position: absolute; left: 23px; top: 11px; border-style: solid; border-width: 9px 0 9px 15px; border-color: transparent transparent transparent #fff; }
+  .bcard:hover .play { background: #f00; }
+  .body { display: flex; flex-direction: column; gap: 0.5rem; padding: 1.2rem 1.3rem 1.4rem; flex: 1; }
+  .body p, .body h3 { margin: 0; }
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.8rem; font-size: 0.8rem; color: var(--muted); }
+  time { font-family: var(--mono); }
+  .cat { color: var(--accent); font-weight: 600; text-decoration: none; }
+  .draft { background: #fde8c8; color: #7a4a00; border-radius: 4px; padding: 0 0.45rem; }
+  h3 { font-size: 1.15rem; }
+  h3 a { color: var(--text); text-decoration: none; }
+  h3 a:hover { color: var(--accent); }
+  .summary { color: var(--muted); font-size: 0.94rem; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .tags { list-style: none; padding: 0; margin: auto 0 0; padding-top: 0.4rem; display: flex; flex-wrap: wrap; gap: 0.2rem 0.7rem; font-size: 0.8rem; color: var(--muted); }
+  /* The newest article on the blog page: picture left, text right, across two columns. */
+  @media (min-width: 900px) {
+    .big { grid-column: 1 / -1; flex-direction: row; }
+    .big .thumb { flex: 1.3; aspect-ratio: auto; min-height: 320px; }
+    .big .body { flex: 1; justify-content: center; padding: 2rem; }
+    .big h3 { font-size: 1.8rem; }
+    .big .summary { font-size: 1.02rem; -webkit-line-clamp: 5; line-clamp: 5; }
+  }
+</style>

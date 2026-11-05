@@ -99,6 +99,16 @@ th { color: var(--muted); font-weight: 600; }
   .js [data-reveal].is-visible { opacity: 1; transform: none; }
 }
 
+/* Hero text that rises in on load; --i staggers the pieces. */
+@media (prefers-reduced-motion: no-preference) {
+  .rise { animation: rise 0.8s calc(var(--i, 0) * 110ms + 100ms) cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+}
+@keyframes rise { from { opacity: 0; transform: translateY(0.4em); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+
+/* Shared full-width band look: section titles and the light dot grid used behind page heroes. */
+.section-title { font-size: clamp(1.6rem, 3.6vw, 2.6rem); font-weight: 800; margin: 0 0 1.2rem; }
+.btn.big { padding: 0.8rem 1.5rem; font-size: 1rem; border-radius: 999px; }
+
 /* A soft light that follows the pointer across cards. The script in Base.astro sets --mx / --my. */
 .spot { position: relative; isolation: isolate; }
 .spot::after {

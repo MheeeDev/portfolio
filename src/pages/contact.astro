@@ -1,43 +1,56 @@
 ---
 import Base from '../layouts/Base.astro';
+import PageHero from '../components/PageHero.astro';
 import { url } from '../lib';
 import { site } from '../site';
+
+const cards = [
+  { label: 'Email', value: site.email, href: `mailto:${site.email}`, note: 'ตอบเร็วที่สุด' },
+  ...site.links.map((l) => ({ label: l.label, value: l.href.replace(/^https?:\/\/(www\.)?/, ''), href: l.href, note: '' })),
+  { label: 'RSS', value: 'iamautomationeng.com/rss.xml', href: url('rss.xml'), note: 'ติดตามบทความใหม่' },
+];
 ---
 <Base title="Contact" description={`Contact ${site.name} — ${site.headline}.`}>
-  <section class="wrap page">
-    <h1>Contact</h1>
-    <p class="lead">For roles, projects or a question about an article, email is the fastest way to reach me.</p>
-    <p lang="th" class="muted">สอบถามเรื่องงาน โปรเจกต์ หรือบทความ ส่งอีเมลมาได้เลยครับ</p>
+  <PageHero eyebrow="Contact" title="มาคุยกัน" titleLang="th" subtitle="สอบถามเรื่องงาน โปรเจกต์ หรือบทความ ส่งอีเมลมาได้เลยครับ — for roles, projects or a question about an article, email is the fastest way to reach me." lang="th" center>
+    <p class="actions">
+      <a class="btn primary big" href={`mailto:${site.email}`}>✉ {site.email}</a>
+      {site.cvFile && <a class="btn big" href={url(site.cvFile)}>Download CV</a>}
+    </p>
+  </PageHero>
 
-    <p class="email"><a class="btn primary" href={`mailto:${site.email}`}>{site.email}</a></p>
+  <section class="wrap wide body">
+    <div class="cards">
+      {cards.map((c, i) => (
+        <a class="card spot" href={c.href} rel="noopener" data-reveal style={`--d:${i}`}>
+          <span class="label">{c.label}</span>
+          <span class="value">{c.value}</span>
+          {c.note && <span class="note" lang="th">{c.note}</span>}
+          <span class="arrow" aria-hidden="true">↗</span>
+        </a>
+      ))}
+    </div>
 
-    <dl class="facts">
+    <dl class="facts" data-reveal>
       <div><dt>Based in</dt><dd>{site.location}</dd></div>
       <div><dt>Work</dt><dd>{site.headline}</dd></div>
-      {site.cvFile && <div><dt>CV</dt><dd><a href={url(site.cvFile)}>Download CV (PDF)</a></dd></div>}
+      <div><dt>Languages</dt><dd>Thai · English</dd></div>
     </dl>
-
-    {site.links.length > 0 && (
-      <>
-        <h2>Elsewhere</h2>
-        <ul class="links">
-          {site.links.map((l) => <li><a href={l.href} rel="noopener">{l.label} ↗</a></li>)}
-          <li><a href={url('rss.xml')}>Blog RSS feed</a></li>
-        </ul>
-      </>
-    )}
   </section>
 </Base>
 
 <style>
-  .page { max-width: 820px; padding-top: 2.5rem; }
-  .lead { font-size: 1.15rem; margin-bottom: 0.2rem; }
-  .email { margin: 1.5rem 0; }
-  .email .btn { font-size: 1.05rem; padding: 0.6rem 1.3rem; overflow-wrap: anywhere; }
-  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.8rem 1.4rem; padding: 1rem 1.2rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+  .actions { display: flex; justify-content: center; gap: 0.7rem; flex-wrap: wrap; margin: 0; }
+  .actions .btn { overflow-wrap: anywhere; }
+  .body { padding-top: 3.5rem; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 1.2rem; }
+  .card { position: relative; display: flex; flex-direction: column; gap: 0.3rem; padding: 1.5rem 1.5rem 1.6rem; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); color: var(--text); text-decoration: none; box-shadow: var(--shadow); overflow: hidden; transition: transform 0.25s, border-color 0.25s; }
+  .card:hover { transform: translateY(-4px); border-color: var(--accent); }
+  .label { font-family: var(--mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); }
+  .value { font-size: 1.05rem; font-weight: 600; overflow-wrap: anywhere; }
+  .note { font-size: 0.85rem; color: var(--muted); }
+  .arrow { position: absolute; top: 1.2rem; right: 1.3rem; color: var(--muted); transition: transform 0.2s, color 0.2s; }
+  .card:hover .arrow { color: var(--accent); transform: translate(2px, -2px); }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem 2rem; margin: 2.5rem 0 0; padding: 1.4rem 1.6rem; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; }
   dt { font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
-  dd { margin: 0.15rem 0 0; }
-  h2 { font-size: 1.1rem; margin-top: 2.2rem; }
-  .links { padding-left: 1.2rem; }
-  .links li { margin: 0.3rem 0; }
+  dd { margin: 0.2rem 0 0; }
 </style>

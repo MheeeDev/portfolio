@@ -1,7 +1,8 @@
 ---
 // The blog listing with its category pills. Used by /blog/ and /blog/category/<id>/.
-import PostCard from './PostCard.astro';
-import { categories, url, type Category, type Post } from '../lib';
+import BlogCard from './BlogCard.astro';
+import PageHero from './PageHero.astro';
+import { categories, categoryLabel, url, type Category, type Post } from '../lib';
 
 interface Props {
   posts: Post[];
@@ -14,34 +15,51 @@ const pills = categories
   .map((c) => ({ ...c, n: all.filter((p) => p.data.category === c.id).length }))
   .filter((c) => c.n > 0);
 ---
-<section class="wrap page">
-  <h1>Blog</h1>
-  <p class="muted intro" lang="th">แชร์ความรู้งาน Automation จากหน้างานจริง ทั้ง PLC, SCADA, OT/IT และเครื่องมือ AI ที่ใช้ทำงาน</p>
+<PageHero
+  eyebrow={current ? `Blog · ${categoryLabel(current)}` : 'Blog'}
+  title={current ? categoryLabel(current) : 'บทความ'}
+  subtitle="แชร์ความรู้งาน Automation จากหน้างานจริง ทั้ง PLC, SCADA, OT/IT และเครื่องมือ AI ที่ใช้ทำงาน"
+  lang="th"
+  titleLang={current ? 'en' : 'th'}
+>
   {pills.length > 0 && (
     <nav class="pills" aria-label="Categories">
-      <a class="btn" class:list={[{ primary: !current }]} href={url('blog/')} aria-current={!current ? 'page' : undefined}>All <span class="n">{all.length}</span></a>
+      <a class:list={['pill', { on: !current }]} href={url('blog/')} aria-current={!current ? 'page' : undefined}>All <span>{all.length}</span></a>
       {pills.map((c) => (
-        <a class="btn" class:list={[{ primary: current === c.id }]} href={url(`blog/category/${c.id}/`)} aria-current={current === c.id ? 'page' : undefined}>
-          {c.label} <span class="n">{c.n}</span>
+        <a class:list={['pill', { on: current === c.id }]} href={url(`blog/category/${c.id}/`)} aria-current={current === c.id ? 'page' : undefined}>
+          {c.label} <span>{c.n}</span>
         </a>
       ))}
     </nav>
   )}
+</PageHero>
+
+<section class="wrap wide list">
   {posts.length > 0 ? (
-    <div class="list">{posts.map((p) => <PostCard post={p} />)}</div>
+    <div class="grid">{posts.map((p, i) => <BlogCard post={p} big={i === 0 && !current} />)}</div>
   ) : (
-    <p class="empty muted" lang="th">ยังไม่มีบทความ เร็ว ๆ นี้ครับ</p>
+    <div class="empty">
+      <p class="big-mark" aria-hidden="true">✍️</p>
+      <h2 lang="th">บทความแรกกำลังมา</h2>
+      <p class="muted" lang="th">ระหว่างนี้ดูผลงานหรือคลิปบน YouTube ไปก่อนได้ครับ</p>
+      <p class="actions"><a class="btn primary big" href={url('projects/')}>See projects →</a><a class="btn big" href={url('videos/')}>Videos</a></p>
+    </div>
   )}
   <p class="rss"><a href={url('rss.xml')}>Subscribe via RSS</a></p>
 </section>
 
 <style>
-  .page { max-width: 820px; padding-top: 2.5rem; }
-  h1 { margin-bottom: 0.2rem; }
-  .intro { margin-top: 0; }
-  .pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 1.2rem 0 0.4rem; }
-  .pills .btn { padding: 0.25rem 0.85rem; font-size: 0.85rem; }
-  .n { opacity: 0.75; font-size: 0.85em; margin-left: 0.15rem; }
-  .empty { padding: 2rem 0; }
-  .rss { margin-top: 2rem; font-size: 0.9rem; }
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.45rem 1rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--text); text-decoration: none; font-size: 0.9rem; font-weight: 500; }
+  .pill span { font-size: 0.78rem; color: var(--muted); }
+  .pill:hover { border-color: var(--accent); color: var(--accent); }
+  .pill.on { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+  .pill.on span { color: inherit; opacity: 0.8; }
+  .list { padding-top: 3rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 1.4rem; }
+  .empty { text-align: center; padding: 4rem 1rem; border: 1px dashed var(--line); border-radius: 20px; }
+  .big-mark { font-size: 2.6rem; margin: 0; }
+  .empty h2 { margin: 0.6rem 0 0.2rem; font-size: 1.6rem; }
+  .actions { display: flex; justify-content: center; gap: 0.7rem; flex-wrap: wrap; margin-top: 1.5rem; }
+  .rss { margin-top: 2.5rem; font-size: 0.9rem; }
 </style>

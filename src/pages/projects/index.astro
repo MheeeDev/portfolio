@@ -1,6 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import ProjectCard from '../../components/ProjectCard.astro';
+import PageHero from '../../components/PageHero.astro';
 import { byTrack, getProjects, slugify, tracks, url } from '../../lib';
 
 const projects = await getProjects();
@@ -13,10 +14,11 @@ const tags = [...new Set(projects.flatMap((p) => p.data.tags))].sort().map((t) =
 }));
 ---
 <Base title="Projects" description="Automation, SCADA and OT/IT integration projects, plus education and lab systems.">
-  <section class="wrap head">
-    <h1>Projects</h1>
-    <p class="muted">{projects.length} projects. Client names are withheld and screenshots are redacted.</p>
-    <p class="no-print"><a href={url('print/')}>Printable version — all projects on one page</a></p>
+  <PageHero
+    eyebrow="Projects"
+    title="Work I have delivered"
+    subtitle={`${projects.length} projects across plant control, SCADA, OT/IT and university labs. Client names are withheld and screenshots are redacted.`}
+  >
     {sections.length > 1 && (
       <div class="tabs no-print" role="tablist" aria-label="Project group">
         <a role="tab" href="#all" data-track="" aria-selected="true">All <span class="n">{projects.length}</span></a>
@@ -31,14 +33,15 @@ const tags = [...new Set(projects.flatMap((p) => p.data.tags))].sort().map((t) =
         {tags.map((t) => <button class="btn" data-tag={t.slug} data-tracks={t.tracks}>{t.label}</button>)}
       </div>
     )}
-  </section>
+  </PageHero>
   {sections.map((s) => (
-    <section class="wrap track" data-track={s.id}>
-      <h2>{s.title} <span class="muted count">· {s.list.length}</span></h2>
+    <section class="wrap wide track" data-track={s.id}>
+      <h2 class="section-title">{s.title} <span class="muted count">· {s.list.length}</span></h2>
       <p class="muted blurb">{s.blurb}</p>
       <div class="grid">{s.list.map((p) => <ProjectCard project={p} />)}</div>
     </section>
   ))}
+  <p class="wrap wide no-print print-link"><a href={url('print/')}>Printable version — all projects on one page →</a></p>
 </Base>
 
 <script>
@@ -85,20 +88,20 @@ const tags = [...new Set(projects.flatMap((p) => p.data.tags))].sort().map((t) =
 </script>
 
 <style>
-  .head { padding-top: 2.5rem; }
-  h1 { margin-bottom: 0.2rem; }
-  .tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 1.4rem 0 0.4rem; border-bottom: 1px solid var(--line); }
-  .tabs a { padding: 0.55rem 1rem; color: var(--muted); text-decoration: none; font-weight: 600; border-bottom: 3px solid transparent; margin-bottom: -1px; }
+  .tabs { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+  .tabs a { padding: 0.5rem 1.1rem; border-radius: 999px; color: var(--muted); text-decoration: none; font-weight: 600; font-size: 0.92rem; }
   .tabs a:hover { color: var(--text); }
-  .tabs a[aria-selected='true'] { color: var(--accent); border-bottom-color: var(--accent); }
-  .tabs .n { font-weight: 400; font-size: 0.85em; color: var(--muted); margin-left: 0.2rem; }
-  .filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 1rem 0 0.6rem; }
-  .filters .btn { padding: 0.25rem 0.8rem; font-size: 0.82rem; }
+  .tabs a[aria-selected='true'] { background: var(--accent); color: var(--surface); }
+  .tabs .n { font-weight: 400; font-size: 0.82em; opacity: 0.75; margin-left: 0.2rem; }
+  .filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 1rem 0 0; }
+  .filters .btn { padding: 0.3rem 0.85rem; font-size: 0.82rem; border-radius: 999px; }
   .filters .btn[hidden] { display: none; }
-  .track h2 { font-size: 1.2rem; margin: 2rem 0 0.2rem; }
+  .track { margin-top: 3.5rem; }
+  .track .section-title { margin-bottom: 0.3rem; }
   .count { font-weight: 400; }
-  .blurb { margin: 0 0 1rem; max-width: 46rem; }
+  .blurb { margin: 0 0 1.6rem; max-width: 46rem; }
   .track[hidden] { display: none; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 1.1rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 1.4rem; }
   .grid :global(.card[hidden]) { display: none; }
+  .print-link { margin-top: 3rem; font-size: 0.92rem; }
 </style>
