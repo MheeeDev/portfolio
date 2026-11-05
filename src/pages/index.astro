@@ -1,7 +1,7 @@
 ---
 import { Image } from 'astro:assets';
 import Base from '../layouts/Base.astro';
-import PostCard from '../components/PostCard.astro';
+import BlogCard from '../components/BlogCard.astro';
 import ProjectCard from '../components/ProjectCard.astro';
 import VideoCard from '../components/VideoCard.astro';
 import HeroTrend from '../components/HeroTrend.astro';
@@ -50,7 +50,7 @@ const channels = [...site.links, { label: 'Email', href: `mailto:${site.email}` 
         {lead
           ? <a class="btn primary big" href={url('blog/')} lang="th">อ่านบทความล่าสุด <span aria-hidden="true">→</span></a>
           : <a class="btn primary big" href={url('projects/')}>See my projects <span aria-hidden="true">→</span></a>}
-        <a class="btn big" href={url('about/')} lang="th">รู้จักเค้ก <span aria-hidden="true">→</span></a>
+        <a class="btn big" href={url('about/')} lang="th">รู้จักเรา <span aria-hidden="true">→</span></a>
         {site.cvFile && <a class="btn big" href={url(site.cvFile)}>Download CV</a>}
       </p>
       {site.now && <p class="now rise" lang="th" style="--i:8"><span class="led" aria-hidden="true"></span>{site.now}</p>}
@@ -123,7 +123,7 @@ const channels = [...site.links, { label: 'Email', href: `mailto:${site.email}` 
           {lead.data.tags.length > 0 && <ul class="tags">{lead.data.tags.map((t) => <li>#{t}</li>)}</ul>}
         </div>
       </article>
-      {morePosts.length > 0 && <div class="more-posts">{morePosts.map((p) => <PostCard post={p} />)}</div>}
+      {morePosts.length > 0 && <div class="more-posts">{morePosts.map((p) => <BlogCard post={p} />)}</div>}
       <p class="see-all"><a href={url('blog/')} lang="th">ดูบทความทั้งหมด →</a></p>
     </section>
   )}
@@ -164,7 +164,7 @@ const channels = [...site.links, { label: 'Email', href: `mailto:${site.email}` 
     <div class="about-grid">
       <div>
         <p class="eyebrow">About</p>
-        <h2 lang="th">เกี่ยวกับเค้ก</h2>
+        <h2 lang="th">เกี่ยวกับเรา</h2>
         <p class="about-text">
           Automation engineer with three years at system integrators — PLC, HMI and SCADA on Siemens, Rockwell and
           Ignition, and the software around them. A chemical process engineer by degree, so I read the P&amp;ID before the I/O list.
@@ -174,7 +174,7 @@ const channels = [...site.links, { label: 'Email', href: `mailto:${site.email}` 
             <li><a href={url('about/#credentials')} title={`${c.title} — ${c.issuer}, ${c.date}`}><span class="tick" aria-hidden="true">✓</span>{c.short}</a></li>
           ))}
         </ul>
-        <p><a href={url('about/')} lang="th">อ่านเพิ่มเติมเกี่ยวกับเค้ก →</a></p>
+        <p><a href={url('about/')} lang="th">อ่านเพิ่มเติมเกี่ยวกับเรา →</a></p>
       </div>
       <div class="channels">
         <p class="muted" lang="th">ติดตามและติดต่อได้ที่</p>
@@ -190,7 +190,7 @@ const channels = [...site.links, { label: 'Email', href: `mailto:${site.email}` 
       <h2 lang="th">มีงานหรือโปรเจกต์อยากคุยกัน?</h2>
       <p class="muted">For roles, projects or a question about an article, email is the fastest way to reach me.</p>
       <p class="actions center-row">
-        <a class="btn primary big" href={url('contact/')} lang="th">ติดต่อเค้ก <span aria-hidden="true">→</span></a>
+        <a class="btn primary big" href={url('contact/')} lang="th">ติดต่อเรา <span aria-hidden="true">→</span></a>
         <a class="btn big" href={`mailto:${site.email}`}>{site.email}</a>
       </p>
     </div>
@@ -319,7 +319,7 @@ const channels = [...site.links, { label: 'Email', href: `mailto:${site.email}` 
   .lead-body h3 a:hover { color: var(--accent); }
   .summary { color: var(--muted); margin-top: 0.8rem !important; font-size: 1.02rem; }
   .tags { list-style: none; padding: 0; margin: 0.9rem 0 0; display: flex; flex-wrap: wrap; gap: 0.2rem 0.8rem; font-size: 0.84rem; color: var(--muted); }
-  .more-posts { margin-top: 2.4rem; border-top: 1px solid var(--line); }
+  .more-posts { margin-top: 2.6rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 1.4rem; }
   @media (max-width: 860px) { .lead-post { grid-template-columns: 1fr; gap: 1.4rem; } }
 
   /* ---------- Featured project: a dark full-width band, whatever the page theme ---------- */
