@@ -1,0 +1,82 @@
+---
+// The 12 soft skills from the soft-skills article, grouped into three pillars, each paired with
+// the automation idea it behaves like. Readers can filter by pillar.
+const pillars = [
+  { id: 'system', icon: '🧠', th: 'คิดเป็นระบบ', en: 'Think in systems' },
+  { id: 'create', icon: '🎨', th: 'สร้างสรรค์', en: 'Create & connect' },
+  { id: 'safe', icon: '🛡️', th: 'ปลอดภัยและไปด้วยกัน', en: 'Safe & human' },
+];
+const skills = [
+  { p: 'system', en: 'Critical Thinking', th: 'คิดวิเคราะห์อย่างมีวิจารณญาณ', like: 'Sensor validation', line: 'ไม่เชื่อค่าแรกที่เห็น ตรวจข้อมูลก่อนตัดสินใจ' },
+  { p: 'system', en: 'Systematic Problem Solving', th: 'แก้ปัญหาเป็นระบบ', like: 'Alarm → Root cause', line: 'แก้ที่ต้นเหตุ ไม่ใช่กด Reset alarm ไปเรื่อย ๆ' },
+  { p: 'system', en: 'Time Management', th: 'บริหารเวลา', like: 'Task priority / OB', line: 'งานด่วนกับงานสำคัญไม่เหมือนกัน ความปลอดภัยมาก่อนเสมอ' },
+  { p: 'system', en: 'Change Management', th: 'บริหารการเปลี่ยนแปลง', like: 'MOC + backup', line: 'ทุกการแก้ไขมีบันทึก มีแผนถอย และคนหน้างานรู้ก่อน' },
+  { p: 'create', en: 'Creativity', th: 'ความคิดสร้างสรรค์', like: 'Digital twin', line: 'หาทางใหม่ภายใต้ข้อจำกัดเดิม ลองในคอมก่อนลองกับเครื่องจริง' },
+  { p: 'create', en: 'Adaptability & Learning', th: 'ปรับตัวและเรียนรู้ตลอด', like: 'Firmware update', line: 'AI, IoT, OT security เปลี่ยนทุกปี วิศวกรก็ต้องอัปเดตตาม' },
+  { p: 'create', en: 'Communication', th: 'สื่อสารและถ่ายทอด', like: 'Protocol gateway', line: 'แปลภาษาเครื่องให้ Operator, ผู้จัดการ และฝ่าย IT เข้าใจตรงกัน' },
+  { p: 'create', en: 'Leadership', th: 'ภาวะผู้นำ', like: 'Cascade master loop', line: 'ตั้งทิศทางให้ทีม แล้วให้แต่ละลูปทำงานของตัวเองได้เต็มที่' },
+  { p: 'safe', en: 'Safety Mindset', th: 'คิดเรื่องความปลอดภัยก่อนเสมอ', like: 'Interlock & fail-safe', line: 'ไม่ปลอดภัย = หยุด ไม่มีงานไหนรีบจนต้อง bypass interlock' },
+  { p: 'safe', en: 'EQ & Empathy', th: 'ความฉลาดทางอารมณ์และความเข้าใจผู้อื่น', like: 'HMI for operators', line: 'ออกแบบให้คนที่ใช้งานตอนตีสาม ไม่ใช่ให้คนเขียนโปรแกรม' },
+  { p: 'safe', en: 'Collaboration', th: 'ทำงานเป็นทีมข้ามแผนก', like: 'Fieldbus network', line: 'ผลิต ซ่อมบำรุง Safety IT และผู้รับเหมา ต้องคุยกันได้ทุกโหนด' },
+  { p: 'safe', en: 'Resilience & Crisis', th: 'ยืดหยุ่นและรับมือวิกฤต', like: 'Watchdog & redundancy', line: 'ไลน์หยุดกลางดึก ตั้งสติ ทำตามขั้นตอน กู้ระบบ แล้วเรียนรู้' },
+];
+---
+<section class="skillmap" aria-label="Soft skill map">
+  <div class="filters" role="group" aria-label="Filter by pillar">
+    <button type="button" class="on" data-p="">ทั้งหมด <span>12</span></button>
+    {pillars.map((p) => <button type="button" data-p={p.id}>{p.icon} {p.th} <span>4</span></button>)}
+  </div>
+  <ol class="cards">
+    {skills.map((s, i) => {
+      const p = pillars.find((x) => x.id === s.p)!;
+      return (
+        <li class:list={['card', 'spot', s.p]} data-p={s.p}>
+          <p class="top" lang="en"><span class="num">{String(i + 1).padStart(2, '0')}</span><span class="pill">{p.icon} {p.en}</span></p>
+          <h4 lang="en">{s.en}</h4>
+          <p class="th">{s.th}</p>
+          <p class="like" lang="en"><span aria-hidden="true">≈</span> {s.like}</p>
+          <p class="line">{s.line}</p>
+        </li>
+      );
+    })}
+  </ol>
+</section>
+
+<script>
+  document.querySelectorAll<HTMLElement>('.skillmap').forEach((map) => {
+    const buttons = map.querySelectorAll<HTMLButtonElement>('.filters button');
+    const cards = map.querySelectorAll<HTMLElement>('.card');
+    buttons.forEach((b) =>
+      b.addEventListener('click', () => {
+        const p = b.dataset.p ?? '';
+        buttons.forEach((x) => x.classList.toggle('on', x === b));
+        cards.forEach((c) => c.classList.toggle('dim', p !== '' && c.dataset.p !== p));
+      }),
+    );
+  });
+</script>
+
+<style>
+  .skillmap { margin: 2rem 0; }
+  .filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 1rem; }
+  .filters button { font: inherit; font-size: 0.88rem; padding: 0.4rem 0.9rem; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text); cursor: pointer; }
+  .filters button span { font-size: 0.75rem; color: var(--muted); margin-left: 0.2rem; }
+  .filters button:hover { border-color: var(--accent); }
+  .filters button.on { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+  .filters button.on span { color: inherit; opacity: 0.8; }
+  .cards { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 0.9rem; }
+  .card { --c: var(--accent); position: relative; padding: 1rem 1.1rem 1.1rem; border: 1px solid var(--line); border-top: 3px solid var(--c); border-radius: 14px; background: var(--surface); overflow: hidden; transition: opacity 0.25s, transform 0.25s, filter 0.25s; }
+  .card.system { --c: #38bdf8; }
+  .card.create { --c: #a855f7; }
+  .card.safe { --c: #22c55e; }
+  .card:hover { transform: translateY(-3px); }
+  .card.dim { opacity: 0.25; filter: grayscale(1); transform: scale(0.98); }
+  .card p, .card h4 { margin: 0; }
+  .top { display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; }
+  .num { font-family: var(--mono); color: var(--c); font-weight: 600; }
+  .pill { color: var(--muted); }
+  h4 { font-size: 1.02rem; margin-top: 0.5rem !important; line-height: 1.3; }
+  .th { font-size: 0.84rem; color: var(--muted); }
+  .like { display: inline-block; margin-top: 0.55rem !important; padding: 0.1rem 0.55rem; border-radius: 6px; font-family: var(--mono); font-size: 0.76rem; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); }
+  .line { margin-top: 0.55rem !important; font-size: 0.88rem; line-height: 1.6; }
+</style>

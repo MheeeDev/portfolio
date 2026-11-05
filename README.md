@@ -23,7 +23,7 @@ Automation engineering portfolio. Built with [Astro](https://astro.build), hoste
 4. รูปวางในโฟลเดอร์เดียวกับบทความ แล้วใส่ `![อธิบายรูป](./screen-01.webp)`
 5. `npm run dev` ดูผล แล้วเปลี่ยน `draft: true` เป็น `draft: false` เมื่อพร้อมเผยแพร่ บทความจะขึ้นหน้า Blog, หน้าแรก, RSS และ sitemap เอง
 
-ตัวอย่างอยู่ที่ `src/content/posts/example-post/` (เป็น draft ลบได้เมื่อมีบทความจริง)
+ตัวอย่างบทความที่ใช้ component เสริม (`<Callout>`, `<Checklist>`) ดูได้ที่ `src/content/posts/soft-skills-automation-engineer/`
 
 ## เพิ่มโปรเจคใหม่
 

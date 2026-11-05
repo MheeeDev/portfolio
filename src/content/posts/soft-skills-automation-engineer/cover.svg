@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900">
+  <defs>
+    <radialGradient id="glow" cx="72%" cy="30%" r="70%">
+      <stop offset="0" stop-color="#0f3550"/>
+      <stop offset="1" stop-color="#05080c"/>
+    </radialGradient>
+    <pattern id="dots" width="28" height="28" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.4" fill="#1d2b38"/>
+    </pattern>
+    <linearGradient id="txt" x1="0" x2="1">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset="0.55" stop-color="#a855f7"/>
+      <stop offset="1" stop-color="#22c55e"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#glow)"/>
+  <rect width="1600" height="900" fill="url(#dots)"/>
+
+  <!-- network of the three pillars -->
+  <g stroke="#26445c" stroke-width="2" fill="none">
+    <path d="M1100 250 L1360 420 L1120 620 Z"/>
+    <path d="M1100 250 L1240 430 M1360 420 L1240 430 M1120 620 L1240 430"/>
+  </g>
+  <circle cx="1240" cy="430" r="58" fill="#05080c" stroke="#22c55e" stroke-width="4"/>
+  <text x="1240" y="425" fill="#22c55e" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="20" font-weight="800" text-anchor="middle" letter-spacing="2">SAFETY</text>
+  <text x="1240" y="450" fill="#7f8c99" font-family="Consolas, monospace" font-size="13" text-anchor="middle" letter-spacing="2">INTERLOCK</text>
+  <g font-family="Consolas, monospace" font-size="18" text-anchor="middle" font-weight="700">
+    <circle cx="1100" cy="250" r="46" fill="#0b1a26" stroke="#38bdf8" stroke-width="3"/>
+    <text x="1100" y="257" fill="#38bdf8">THINK</text>
+    <circle cx="1360" cy="420" r="46" fill="#160f24" stroke="#a855f7" stroke-width="3"/>
+    <text x="1360" y="427" fill="#a855f7">CREATE</text>
+    <circle cx="1120" cy="620" r="46" fill="#0b1f15" stroke="#22c55e" stroke-width="3"/>
+    <text x="1120" y="627" fill="#22c55e">CARE</text>
+  </g>
+
+  <!-- status line like an HMI header -->
+  <g font-family="Consolas, monospace" font-size="20" fill="#7f8c99">
+    <circle cx="128" cy="154" r="7" fill="#22c55e"/>
+    <text x="146" y="161">ENGINEER.FIRMWARE  v1.0  ·  12 MODULES LOADED</text>
+  </g>
+
+  <text x="120" y="360" fill="#f1f5f9" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="128" font-weight="800" letter-spacing="-5">Soft Skills</text>
+  <text x="120" y="480" fill="url(#txt)" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="96" font-weight="800" letter-spacing="-3">× Automation</text>
+  <text x="124" y="560" fill="#9aa4b0" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="34" font-weight="500">Systematic · Creative · Safe</text>
+
+  <!-- trend under the title -->
+  <path d="M120 720 H330 V650 C 380 560 430 600 470 640 S 560 690 610 655 S 700 640 760 650 H900" fill="none" stroke="#38bdf8" stroke-width="4" stroke-linecap="round"/>
+  <path d="M120 720 H330 V650 H900" fill="none" stroke="#3b4a59" stroke-width="2" stroke-dasharray="10 10"/>
+  <circle cx="900" cy="650" r="8" fill="#22c55e"/>
+  <text x="120" y="790" fill="#4b5a69" font-family="Consolas, monospace" font-size="20">iamautomationeng.com</text>
+</svg>

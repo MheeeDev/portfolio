@@ -1,0 +1,53 @@
+---
+// An engineer drawn as a control loop: Sense → Decide → Act → Feedback, with safety as the
+// interlock in the middle that can stop every stage. Used in the soft-skills article.
+const stages = [
+  { x: 300, y: 70, en: 'SENSE', th: 'รับรู้', skills: 'Critical Thinking' },
+  { x: 530, y: 230, en: 'DECIDE', th: 'ตัดสินใจ', skills: 'Problem Solving · Time' },
+  { x: 300, y: 390, en: 'ACT', th: 'ลงมือ', skills: 'Communication · Leadership' },
+  { x: 70, y: 230, en: 'FEEDBACK', th: 'ทบทวน', skills: 'EQ · Learning · Resilience' },
+];
+---
+<figure class="loop">
+  <svg viewBox="0 0 600 460" role="img" aria-label="Soft skills as a control loop: sense, decide, act, feedback, with safety in the middle">
+    <circle class="ring" cx="300" cy="230" r="160" />
+    <!-- Clockwise arc; the moving dashes show the direction of the loop. -->
+    <path class="flow" d="M300,70 A160,160 0 1,1 299.9,70" />
+    <g class="core">
+      <circle cx="300" cy="230" r="62" />
+      <text x="300" y="222" class="core-en">SAFETY</text>
+      <text x="300" y="246" class="core-th">INTERLOCK</text>
+    </g>
+    {stages.map((s, i) => (
+      <g class="stage" style={`--i:${i}`}>
+        <rect x={s.x - 78} y={s.y - 38} width="156" height="76" rx="16" />
+        <text x={s.x} y={s.y - 12} class="en">{s.en}</text>
+        <text x={s.x} y={s.y + 8} class="th">{s.th}</text>
+        <text x={s.x} y={s.y + 26} class="sk">{s.skills}</text>
+      </g>
+    ))}
+  </svg>
+  <figcaption>วิศวกรก็ทำงานเป็นลูปเหมือนระบบควบคุม และมี Safety เป็น interlock ตรงกลางที่สั่งหยุดได้ทุกขั้น</figcaption>
+</figure>
+
+<style>
+  .loop { margin: 2rem 0; padding: 1rem; border: 1px solid var(--line); border-radius: 20px; background: radial-gradient(circle at 50% 50%, var(--accent-soft), var(--surface) 70%); }
+  svg { width: 100%; height: auto; display: block; max-width: 620px; margin: 0 auto; }
+  .ring { fill: none; stroke: var(--line); stroke-width: 10; }
+  .flow { fill: none; stroke: var(--accent); stroke-width: 3; stroke-dasharray: 10 14; stroke-linecap: round; }
+  .core circle { fill: var(--surface); stroke: #22c55e; stroke-width: 3; }
+  .core-en { font: 700 20px var(--font); fill: #22c55e; text-anchor: middle; letter-spacing: 0.08em; }
+  .core-th { font: 500 11px var(--mono); fill: var(--muted); text-anchor: middle; letter-spacing: 0.12em; }
+  .stage rect { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+  .stage text { text-anchor: middle; }
+  .en { font: 700 15px var(--mono); fill: var(--accent); letter-spacing: 0.08em; }
+  .th { font: 600 14px var(--font); fill: var(--text); }
+  .sk { font: 400 10.5px var(--font); fill: var(--muted); }
+  figcaption { text-align: center; font-size: 0.88rem; color: var(--muted); margin-top: 0.4rem; }
+  @media (prefers-reduced-motion: no-preference) {
+    .flow { animation: flow 3s linear infinite; }
+    .core circle { animation: pulse 2.6s ease-in-out infinite; }
+  }
+  @keyframes flow { to { stroke-dashoffset: -96; } }
+  @keyframes pulse { 50% { stroke-width: 6; } }
+</style>

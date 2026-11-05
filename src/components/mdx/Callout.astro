@@ -1,0 +1,28 @@
+---
+// A highlighted box inside an article.  <Callout type="safety" title="...">text</Callout>
+interface Props {
+  type?: 'tip' | 'safety' | 'story' | 'note';
+  title?: string;
+}
+const { type = 'note', title } = Astro.props;
+const icons = { tip: '💡', safety: '🛡️', story: '🏭', note: '📌' };
+---
+<aside class:list={['callout', type]}>
+  <span class="icon" aria-hidden="true">{icons[type]}</span>
+  <div>
+    {title && <p class="title">{title}</p>}
+    <div class="text"><slot /></div>
+  </div>
+</aside>
+
+<style>
+  .callout { display: flex; gap: 0.9rem; margin: 1.6rem 0; padding: 1rem 1.2rem; border: 1px solid var(--line); border-left: 4px solid var(--c); border-radius: 14px; background: color-mix(in srgb, var(--c) 8%, var(--surface)); }
+  .tip { --c: #eab308; }
+  .safety { --c: #22c55e; }
+  .story { --c: #a855f7; }
+  .note { --c: var(--accent); }
+  .icon { font-size: 1.3rem; line-height: 1.6; }
+  .title { margin: 0 0 0.2rem; font-weight: 700; }
+  .text :global(p) { margin: 0.2rem 0; }
+  .text :global(ul) { margin: 0.3rem 0; padding-left: 1.2rem; }
+</style>

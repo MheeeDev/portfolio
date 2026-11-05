@@ -1,0 +1,53 @@
+---
+// A checklist readers can tick off, with a progress bar. Nothing is saved.
+// <Checklist title="..." items={['...', '...']} />
+interface Props {
+  title: string;
+  items: string[];
+}
+const { title, items } = Astro.props;
+---
+<section class="checklist" data-total={items.length}>
+  <header>
+    <p class="title">✅ {title}</p>
+    <p class="count"><span class="done">0</span> / {items.length}</p>
+  </header>
+  <div class="bar" aria-hidden="true"><span></span></div>
+  <ul>
+    {items.map((it) => (
+      <li><label><input type="checkbox" /><span>{it}</span></label></li>
+    ))}
+  </ul>
+  <p class="ready" hidden>พร้อมลงหน้างานแล้ว 🚀</p>
+</section>
+
+<script>
+  document.querySelectorAll<HTMLElement>('.checklist').forEach((box) => {
+    const total = Number(box.dataset.total);
+    const done = box.querySelector('.done')!;
+    const bar = box.querySelector<HTMLElement>('.bar span')!;
+    const ready = box.querySelector<HTMLElement>('.ready')!;
+    box.addEventListener('change', () => {
+      const n = box.querySelectorAll('input:checked').length;
+      done.textContent = String(n);
+      bar.style.width = `${(n / total) * 100}%`;
+      ready.hidden = n !== total;
+    });
+  });
+</script>
+
+<style>
+  .checklist { margin: 2rem 0; padding: 1.3rem 1.4rem; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); box-shadow: var(--shadow); }
+  header { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+  .title { margin: 0; font-weight: 700; font-size: 1.08rem; }
+  .count { margin: 0; font-family: var(--mono); color: var(--muted); font-size: 0.9rem; }
+  .bar { height: 6px; margin: 0.8rem 0 0.6rem; border-radius: 999px; background: var(--chip); overflow: hidden; }
+  .bar span { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, var(--accent), #22c55e); transition: width 0.35s ease; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li { border-bottom: 1px dashed var(--line); }
+  li:last-child { border-bottom: 0; }
+  label { display: flex; gap: 0.8rem; align-items: flex-start; padding: 0.6rem 0.2rem; cursor: pointer; }
+  input { width: 1.15rem; height: 1.15rem; margin-top: 0.35rem; accent-color: #22c55e; flex: none; }
+  input:checked + span { color: var(--muted); text-decoration: line-through; text-decoration-color: #22c55e; }
+  .ready { margin: 0.8rem 0 0; font-weight: 700; color: #22c55e; }
+</style>
