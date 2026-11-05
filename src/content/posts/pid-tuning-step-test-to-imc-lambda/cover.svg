@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900">
+  <defs>
+    <radialGradient id="glow" cx="78%" cy="40%" r="75%">
+      <stop offset="0" stop-color="#2a2410"/>
+      <stop offset="0.45" stop-color="#0f1b26"/>
+      <stop offset="1" stop-color="#05080c"/>
+    </radialGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#14212d" stroke-width="1"/>
+    </pattern>
+    <linearGradient id="txt" x1="0" x2="1">
+      <stop offset="0" stop-color="#f59e0b"/>
+      <stop offset="1" stop-color="#38bdf8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#glow)"/>
+  <rect width="1600" height="900" fill="url(#grid)"/>
+
+  <!-- reaction curve with tangent, theta and tau -->
+  <g transform="translate(960 180)">
+    <rect x="0" y="0" width="540" height="420" rx="24" fill="#0b1118" stroke="#223140" stroke-width="2"/>
+    <path d="M40 340 H120 V300 H500" fill="none" stroke="#a855f7" stroke-width="3"/>
+    <path d="M40 260 H150 C 200 160 260 110 330 92 S 450 80 500 80" fill="none" stroke="#38bdf8" stroke-width="5" stroke-linecap="round"/>
+    <path d="M130 270 L 330 40" stroke="#f59e0b" stroke-width="3" stroke-dasharray="12 9"/>
+    <line x1="40" x2="500" y1="80" y2="80" stroke="#3b4a59" stroke-dasharray="8 8"/>
+    <line x1="40" x2="500" y1="260" y2="260" stroke="#3b4a59" stroke-dasharray="8 8"/>
+    <g font-family="Consolas, monospace" font-weight="700" font-size="24" fill="#e2e8f0">
+      <line x1="120" x2="150" y1="380" y2="380" stroke="#e2e8f0" stroke-width="2"/>
+      <text x="126" y="410">θ</text>
+      <line x1="150" x2="295" y1="44" y2="44" stroke="#e2e8f0" stroke-width="2"/>
+      <text x="206" y="34">τ</text>
+      <text x="420" y="180" fill="#38bdf8">K</text>
+    </g>
+    <circle cx="225" cy="140" r="9" fill="#0b1118" stroke="#22c55e" stroke-width="4"/>
+    <text x="40" y="40" fill="#7f8c99" font-family="Consolas, monospace" font-size="18">STEP TEST · PIC-101</text>
+  </g>
+
+  <g font-family="Consolas, monospace" font-size="20" fill="#7f8c99">
+    <circle cx="128" cy="154" r="7" fill="#f59e0b"/>
+    <text x="146" y="161">SERIES · BUILD. TEST. COMMISSION. SHARE.  ·  EP 03 COMMISSION</text>
+  </g>
+  <text x="120" y="340" fill="#f1f5f9" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="118" font-weight="800" letter-spacing="-5">Tune with</text>
+  <text x="120" y="464" fill="url(#txt)" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="118" font-weight="800" letter-spacing="-5">evidence.</text>
+  <text x="124" y="548" fill="#9aa4b0" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="34" font-weight="500">Step test → FOPDT → Ziegler–Nichols vs IMC λ</text>
+  <g font-family="Consolas, monospace" font-size="26" fill="#cbd5e1">
+    <rect x="120" y="610" width="560" height="70" rx="35" fill="#0b1118" stroke="#223140" stroke-width="2"/>
+    <text x="150" y="655">Kc = τ / K(λ + θ)   Ti = τ</text>
+  </g>
+  <text x="120" y="790" fill="#4b5a69" font-family="Consolas, monospace" font-size="20">iamautomationeng.com</text>
+</svg>

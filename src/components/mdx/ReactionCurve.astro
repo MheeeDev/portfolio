@@ -1,0 +1,67 @@
+---
+// How K, θ and τ are read off an open-loop step test, drawn on the thesis pressure loop
+// (K = 0.92, θ = 3.65 s, τ = 21.1 s) for an MV step of 20 %. Both the tangent method and the
+// two-point (28.3 % / 63.2 %) method are marked.
+const K = 0.92, theta = 3.65, tau = 21.1, dMV = 20, t0 = 10;
+const dPV = K * dMV;
+const W = 640, H = 300, x0 = 50, y0 = 250, sx = 5.6, sy = 9;
+const X = (t: number) => x0 + t * sx;
+const Ypv = (v: number) => y0 - 40 - v * sy;
+const pv = (t: number) => (t < t0 + theta ? 0 : dPV * (1 - Math.exp(-(t - t0 - theta) / tau)));
+const pts: string[] = [];
+for (let t = 0; t <= 105; t += 0.5) pts.push(`${X(t).toFixed(1)},${Ypv(pv(t)).toFixed(1)}`);
+const t283 = t0 + theta + tau * -Math.log(1 - 0.283);
+const t632 = t0 + theta + tau;
+---
+<figure class="rc">
+  <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Open-loop step test: reading process gain, dead time and time constant">
+    <!-- MV step -->
+    <path class="mv" d={`M${X(0)},${y0} H${X(t0)} V${y0 - 28} H${X(105)}`} />
+    <text class="lbl mvl" x={X(106)} y={y0 - 24}>MV +{dMV} %</text>
+    <!-- PV response -->
+    <line class="base" x1={X(0)} x2={X(105)} y1={Ypv(0)} y2={Ypv(0)} />
+    <line class="base" x1={X(0)} x2={X(105)} y1={Ypv(dPV)} y2={Ypv(dPV)} />
+    <path class="pv" d={`M${pts.join(' L')}`} />
+    <!-- tangent at the steepest point (just after the dead time for a FOPDT) -->
+    <line class="tan" x1={X(t0 + theta - 2)} y1={Ypv((-2 * dPV) / tau)} x2={X(t0 + theta + tau + 4)} y2={Ypv(dPV + (4 * dPV) / tau)} />
+    <!-- two-point method -->
+    <circle class="pt" cx={X(t283)} cy={Ypv(0.283 * dPV)} r="5" />
+    <circle class="pt" cx={X(t632)} cy={Ypv(0.632 * dPV)} r="5" />
+    <text class="lbl small" x={X(t283) + 8} y={Ypv(0.283 * dPV) + 4}>28.3 %</text>
+    <text class="lbl small" x={X(t632) + 8} y={Ypv(0.632 * dPV) + 4}>63.2 %</text>
+    <!-- dimensions -->
+    <g class="dim">
+      <line x1={X(t0)} x2={X(t0 + theta)} y1={Ypv(0) + 16} y2={Ypv(0) + 16} />
+      <text x={X(t0 + theta / 2)} y={Ypv(0) + 32}>θ</text>
+      <line x1={X(t0 + theta)} x2={X(t632)} y1={Ypv(dPV) - 12} y2={Ypv(dPV) - 12} />
+      <text x={X(t0 + theta + tau / 2)} y={Ypv(dPV) - 20}>τ (to 63.2 %)</text>
+      <line x1={X(90)} x2={X(90)} y1={Ypv(0)} y2={Ypv(dPV)} />
+      <text x={X(92)} y={Ypv(dPV / 2)} text-anchor="start">ΔPV = K·ΔMV</text>
+    </g>
+    <text class="lbl" x={X(0)} y={Ypv(dPV) - 6}>PV</text>
+  </svg>
+  <figcaption>
+    อ่านค่าจาก step test: <b>K</b> = ΔPV % ÷ ΔMV % · <b>θ</b> = เวลาตั้งแต่ MV เปลี่ยนจนเส้นสัมผัสตัดฐาน ·
+    <b>τ</b> = เวลาจากจุดนั้นจน PV ถึง 63.2 % · วิธีสองจุด: τ = 1.5 (t₆₃.₂ − t₂₈.₃), θ = t₆₃.₂ − τ
+  </figcaption>
+</figure>
+
+<style>
+  .rc { margin: 2rem 0; padding: 1rem 1.1rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); }
+  svg { width: 100%; height: auto; display: block; }
+  .base { stroke: var(--line); stroke-dasharray: 4 5; }
+  .mv { fill: none; stroke: #a855f7; stroke-width: 2; }
+  .pv { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; }
+  .tan { stroke: #f59e0b; stroke-width: 1.6; stroke-dasharray: 7 5; }
+  .pt { fill: var(--surface); stroke: #22c55e; stroke-width: 2.5; }
+  .lbl { font: 12px var(--mono); fill: var(--muted); }
+  .small { font-size: 11px; fill: #22c55e; }
+  .mvl { fill: #a855f7; }
+  .dim line { stroke: var(--text); stroke-width: 1.2; }
+  .dim text { font: 600 13px var(--mono); fill: var(--text); text-anchor: middle; }
+  figcaption { font-size: 0.88rem; color: var(--muted); margin-top: 0.6rem; line-height: 1.7; }
+  @media (prefers-reduced-motion: no-preference) {
+    .pv { stroke-dasharray: 900; stroke-dashoffset: 900; animation: draw 2.2s 0.2s ease-out forwards; }
+  }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+</style>

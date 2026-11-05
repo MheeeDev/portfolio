@@ -1,0 +1,157 @@
+---
+// Compare Ziegler–Nichols PID with IMC (λ) PI on the pressure loop measured in the B.Eng. thesis:
+// FOPDT with K = 0.92, τ = 21.1 s, θ = 3.65 s (0 → 60 % step). A "low range" switch drops the plant
+// gain to 0.30, as measured below 20 % valve output, while keeping the same controller settings.
+// Each run: SP +10 % at t = 5 s, then a −5 % load disturbance on the valve at t = 120 s.
+const K = 0.92, tau = 21.1, theta = 3.65;
+---
+<section class="tunelab" data-k={K} data-tau={tau} data-theta={theta}>
+  <header>
+    <p class="title">⚙️ Tune lab · Pressure loop จาก thesis</p>
+    <p class="hint">K = {K} · τ = {tau} s · θ = {theta} s · กด Method แล้วลองเลื่อน λ ดู</p>
+  </header>
+
+  <div class="row">
+    <div class="seg" role="group" aria-label="Tuning method">
+      <button type="button" data-m="zn" class="on">Ziegler–Nichols PID</button>
+      <button type="button" data-m="imc">IMC (λ) PI</button>
+    </div>
+    <div class="seg" role="group" aria-label="Operating range">
+      <button type="button" data-k="normal" class="on">ช่วงปกติ K 0.92</button>
+      <button type="button" data-k="low">ช่วงล่าง K 0.30</button>
+    </div>
+  </div>
+  <label class="lam">λ (s) <output>3.65</output><input type="range" min="1" max="25" step="0.05" value="3.65" disabled /></label>
+
+  <p class="params"></p>
+
+  <svg viewBox="0 0 640 240" role="img" aria-label="Closed-loop response">
+    <g class="grid">{[0, 1, 2, 3, 4].map((i) => <line x1="30" x2="630" y1={20 + i * 45} y2={20 + i * 45} />)}</g>
+    <line class="dist" x1="330" x2="330" y1="20" y2="200" />
+    <text class="note" x="334" y="32">load −5 %</text>
+    <path class="mv" d="" />
+    <path class="sp" d="" />
+    <path class="pv" d="" />
+    <text class="note" x="630" y="226" text-anchor="end">0 → 240 s</text>
+  </svg>
+  <p class="legend"><span class="k pv-k"></span>PV pressure <span class="k sp-k"></span>SP <span class="k mv-k"></span>Valve output (scaled)</p>
+
+  <dl class="metrics">
+    <div><dt>Overshoot</dt><dd data-m="os"></dd></div>
+    <div><dt>Settling ±2 %</dt><dd data-m="st"></dd></div>
+    <div><dt>Disturbance peak</dt><dd data-m="dp"></dd></div>
+    <div><dt>Valve hits 0/100 %</dt><dd data-m="sat"></dd></div>
+  </dl>
+</section>
+
+<script>
+  document.querySelectorAll<HTMLElement>('.tunelab').forEach((box) => {
+    const K = Number(box.dataset.k), tau = Number(box.dataset.tau), theta = Number(box.dataset.theta);
+    let method = 'zn', range = 'normal';
+    const lam = box.querySelector<HTMLInputElement>('.lam input')!;
+    const lamOut = box.querySelector<HTMLOutputElement>('.lam output')!;
+    const set = (sel: string, txt: string, cls = '') => { const el = box.querySelector<HTMLElement>(sel)!; el.textContent = txt; el.className = cls; };
+    const X = (t: number) => 30 + (t / 240) * 600;
+
+    function run() {
+      const Kplant = range === 'normal' ? K : 0.3;
+      const y0 = range === 'normal' ? 50 : 15, sp1 = y0 + 10;
+      const L = Number(lam.value);
+      lamOut.textContent = L.toFixed(2);
+      lam.disabled = method !== 'imc';
+      // Settings always come from the model measured in the normal range.
+      const p = method === 'zn'
+        ? { Kc: (1.2 * tau) / (K * theta), Ti: 2 * theta, Td: 0.5 * theta }
+        : { Kc: tau / (K * (L + theta)), Ti: tau, Td: 0 };
+      box.querySelector('.params')!.innerHTML =
+        `Kc = <b>${p.Kc.toFixed(2)}</b> · Ti = <b>${p.Ti.toFixed(1)} s</b> · Td = <b>${p.Td.toFixed(2)} s</b>` +
+        ` <span>(PB ≈ ${(100 / p.Kc).toFixed(1)} %)</span>`;
+
+      const dt = 0.05, u0 = y0 / Kplant, buf: number[] = Array(Math.round(theta / dt)).fill(u0);
+      let y = y0, I = 0, yf = y0, yfPrev = y0, max = -1e9, settle = 0, dpk = 0, sat = false;
+      const lo = y0 - 15, span = 30;
+      const Y = (v: number) => 200 - ((v - lo) / span) * 180;
+      const pv: string[] = [], mv: string[] = [];
+      for (let i = 0; i <= 240 / dt; i++) {
+        const t = i * dt, sp = t < 5 ? y0 : sp1, e = sp - y;
+        let D = 0;
+        if (p.Td) { yf += ((y - yf) * dt) / (p.Td / 10 + dt); D = (-p.Kc * p.Td * (yf - yfPrev)) / dt; yfPrev = yf; }
+        let u = u0 + p.Kc * (e + I / p.Ti) + D;
+        if (u > 100) { u = 100; sat = true; } else if (u < 0) { u = 0; sat = true; } else I += e * dt;
+        buf.push(u);
+        const ud = buf.shift()!;
+        y += ((Kplant * (ud + (t >= 120 ? -5 : 0)) - y) * dt) / tau;
+        if (t > 5 && t < 120) { max = Math.max(max, y); if (Math.abs(y - sp1) > 0.2) settle = t - 5; }
+        if (t >= 120) dpk = Math.max(dpk, sp1 - y);
+        if (i % 20 === 0) {
+          pv.push(`${X(t).toFixed(1)},${Math.max(12, Math.min(206, Y(y))).toFixed(1)}`);
+          mv.push(`${X(t).toFixed(1)},${(200 - (u / 100) * 180).toFixed(1)}`);
+        }
+      }
+      box.querySelector('.pv')!.setAttribute('d', `M${pv.join(' L')}`);
+      box.querySelector('.mv')!.setAttribute('d', `M${mv.join(' L')}`);
+      box.querySelector('.sp')!.setAttribute('d', `M${X(0)},${Y(y0)} H${X(5)} V${Y(sp1)} H${X(240)}`);
+
+      const os = Math.max(0, ((max - sp1) / 10) * 100);
+      set('[data-m=os]', `${os.toFixed(0)} %`, os > 10 ? 'bad' : 'good');
+      set('[data-m=st]', settle >= 114 ? 'ไม่นิ่งใน 115 s' : `${settle.toFixed(0)} s`, settle > 60 ? 'bad' : 'good');
+      set('[data-m=dp]', `${dpk.toFixed(2)} %`, dpk > 1.5 ? 'bad' : 'good');
+      set('[data-m=sat]', sat ? 'ชน (สั่งแรง)' : 'ไม่ชน', sat ? 'bad' : 'good');
+    }
+
+    box.querySelectorAll<HTMLButtonElement>('[data-m]').forEach((b) => {
+      if (b.tagName !== 'BUTTON') return;
+      b.addEventListener('click', () => {
+        method = b.dataset.m!;
+        box.querySelectorAll('button[data-m]').forEach((x) => x.classList.toggle('on', x === b));
+        run();
+      });
+    });
+    box.querySelectorAll<HTMLButtonElement>('button[data-k]').forEach((b) =>
+      b.addEventListener('click', () => {
+        range = b.dataset.k!;
+        box.querySelectorAll('button[data-k]').forEach((x) => x.classList.toggle('on', x === b));
+        run();
+      }),
+    );
+    lam.addEventListener('input', run);
+    run();
+  });
+</script>
+
+<style>
+  .tunelab { margin: 2rem 0; padding: 1.3rem 1.4rem 1.2rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: var(--shadow); }
+  header p { margin: 0; }
+  .title { font-weight: 700; font-size: 1.08rem; }
+  .hint { color: var(--muted); font: 0.82rem var(--mono); }
+  .row { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; margin: 1rem 0 0.7rem; }
+  .seg { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--chip); }
+  .seg button { font: inherit; font-size: 0.84rem; padding: 0.35rem 0.85rem; border: 0; border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; }
+  .seg button.on { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 0.12); }
+  .lam { display: grid; grid-template-columns: 1fr auto; gap: 0.2rem; max-width: 360px; font: 0.85rem var(--mono); color: var(--muted); }
+  .lam input { grid-column: 1 / -1; accent-color: var(--accent); }
+  .lam input:disabled { opacity: 0.35; }
+  .lam output { color: var(--text); font-weight: 600; }
+  .params { margin: 0.7rem 0; font: 0.85rem var(--mono); }
+  .params :global(span) { color: var(--muted); }
+  svg { width: 100%; height: auto; display: block; background: color-mix(in srgb, var(--chip) 50%, transparent); border-radius: 12px; }
+  .grid line { stroke: var(--line); }
+  .dist { stroke: #f59e0b; stroke-dasharray: 4 4; }
+  .note { font: 10px var(--mono); fill: var(--muted); }
+  .sp { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 6 6; }
+  .pv { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; }
+  .mv { fill: none; stroke: #a855f7; stroke-width: 1.2; opacity: 0.55; }
+  .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.5rem; font-size: 0.8rem; color: var(--muted); margin: 0.5rem 0 0; }
+  .k { display: inline-block; width: 18px; height: 3px; border-radius: 2px; margin-left: 0.6rem; }
+  .k:first-child { margin-left: 0; }
+  .pv-k { background: var(--accent); }
+  .sp-k { background: var(--muted); }
+  .mv-k { background: #a855f7; }
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin: 0.9rem 0 0; }
+  @media (max-width: 600px) { .metrics { grid-template-columns: repeat(2, 1fr); } }
+  .metrics div { padding: 0.6rem 0.7rem; border: 1px solid var(--line); border-radius: 12px; }
+  dt { font: 0.7rem var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  dd { margin: 0.2rem 0 0; font-weight: 700; }
+  dd.good { color: #16a34a; }
+  dd.bad { color: #ef4444; }
+</style>

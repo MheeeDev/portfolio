@@ -7,7 +7,10 @@ import Callout from '../../components/mdx/Callout.astro';
 import Checklist from '../../components/mdx/Checklist.astro';
 import SkillLoop from '../../components/mdx/SkillLoop.astro';
 import SkillMap from '../../components/mdx/SkillMap.astro';
+import PidExplainer from '../../components/mdx/PidExplainer.astro';
+import ReactionCurve from '../../components/mdx/ReactionCurve.astro';
 import TankSim from '../../components/mdx/TankSim.astro';
+import TuneLab from '../../components/mdx/TuneLab.astro';
 import TestMatrix from '../../components/mdx/TestMatrix.astro';
 import TwinSwitch from '../../components/mdx/TwinSwitch.astro';
 import { categoryLabel, formatDate, getPosts, url, type Post } from '../../lib';
@@ -26,7 +29,7 @@ interface Props { post: Post; newer?: Post; older?: Post }
 const { post, newer, older } = Astro.props;
 const d = post.data;
 // These components work inside .mdx articles without an import line.
-const components = { YouTube, Callout, Checklist, SkillLoop, SkillMap, TankSim, TestMatrix, TwinSwitch };
+const components = { YouTube, Callout, Checklist, SkillLoop, SkillMap, TankSim, TestMatrix, TwinSwitch, ReactionCurve, TuneLab, PidExplainer };
 const { Content, headings } = await render(post);
 const toc = headings.filter((h) => h.depth === 2);
 // Thai has no spaces between words, so estimate from characters (~900 a minute) rather than words.

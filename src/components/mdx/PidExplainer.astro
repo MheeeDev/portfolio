@@ -1,0 +1,166 @@
+---
+// What P, I and D each do, on the thesis pressure loop (FOPDT K = 0.92, τ = 21.1 s, θ = 3.65 s).
+// Readers switch each term on or off; the block diagram lights the active paths and the step
+// response is simulated again. Settings are fixed (Kc 5, Ti 8 s, Td 1.5 s) so only the structure changes.
+const terms = [
+  { id: 'p', name: 'P', eq: 'Kc · e', y: 70, c: '#38bdf8' },
+  { id: 'i', name: 'I', eq: '(Kc/Ti) ∫ e dt', y: 130, c: '#a855f7' },
+  { id: 'd', name: 'D', eq: '− Kc · Td · dPV/dt', y: 190, c: '#f59e0b' },
+];
+---
+<section class="pidx">
+  <div class="toggles" role="group" aria-label="PID terms">
+    {terms.map((t) => (
+      <label class={`tg ${t.id}`} style={`--c:${t.c}`}>
+        <input type="checkbox" data-term={t.id} checked={t.id !== 'd'} />
+        <span class="box">{t.name}</span>
+      </label>
+    ))}
+    <span class="preset" aria-live="polite"></span>
+  </div>
+
+  <svg class="diagram" viewBox="0 0 760 250" role="img" aria-label="PID control loop block diagram">
+    <defs>
+      <marker id="pidx-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+        <path d="M0,0 L10,5 L0,10 z" fill="currentColor" />
+      </marker>
+    </defs>
+    <g class="wires">
+      <text class="lbl" x="18" y="124">SP</text>
+      <line x1="40" y1="130" x2="82" y2="130" marker-end="url(#pidx-arrow)" />
+      <circle class="sum" cx="98" cy="130" r="16" />
+      <text class="sign" x="74" y="122">+</text>
+      <text class="sign" x="102" y="162">−</text>
+      <line x1="114" y1="130" x2="150" y2="130" />
+      <text class="lbl small" x="124" y="122">e</text>
+      <line x1="150" y1="70" x2="150" y2="190" />
+    </g>
+    {terms.map((t) => (
+      <g class={`branch ${t.id}`} style={`--c:${t.c}`} data-branch={t.id}>
+        <line x1="150" y1={t.y} x2="190" y2={t.y} marker-end="url(#pidx-arrow)" />
+        <rect x="192" y={t.y - 22} width="190" height="44" rx="12" />
+        <text class="bname" x="212" y={t.y + 6}>{t.name}</text>
+        <text class="beq" x="236" y={t.y + 5}>{t.eq}</text>
+        <line x1="382" y1={t.y} x2="420" y2={t.y} />
+        <line x1="420" y1={t.y} x2="420" y2="130" />
+      </g>
+    ))}
+    <g class="wires">
+      <line x1="420" y1="130" x2="446" y2="130" marker-end="url(#pidx-arrow)" />
+      <circle class="sum" cx="462" cy="130" r="16" />
+      <text class="sign" x="455" y="136">Σ</text>
+      <line x1="478" y1="130" x2="514" y2="130" marker-end="url(#pidx-arrow)" />
+      <text class="lbl small" x="482" y="122">MV</text>
+      <rect class="blk" x="516" y="106" width="92" height="48" rx="10" />
+      <text class="btxt" x="562" y="128">Control</text>
+      <text class="btxt" x="562" y="144">valve</text>
+      <line x1="608" y1="130" x2="636" y2="130" marker-end="url(#pidx-arrow)" />
+      <rect class="blk" x="638" y="106" width="92" height="48" rx="10" />
+      <text class="btxt" x="684" y="128">Pressure</text>
+      <text class="btxt" x="684" y="144">process</text>
+      <line x1="730" y1="130" x2="746" y2="130" />
+      <line x1="746" y1="130" x2="746" y2="232" />
+      <line x1="746" y1="232" x2="98" y2="232" />
+      <line x1="98" y1="232" x2="98" y2="148" marker-end="url(#pidx-arrow)" />
+      <rect class="blk small" x="384" y="216" width="80" height="32" rx="8" />
+      <text class="btxt" x="424" y="236">PT · PV</text>
+      <text class="lbl small" x="700" y="98">PV</text>
+    </g>
+  </svg>
+
+  <svg class="chart" viewBox="0 0 640 220" role="img" aria-label="Step response for the selected terms">
+    <g class="grid">{[0, 1, 2, 3, 4].map((i) => <line x1="34" x2="630" y1={20 + i * 45} y2={20 + i * 45} />)}</g>
+    <text class="axis" x="28" y="24" text-anchor="end">1.8</text>
+    <text class="axis" x="28" y={200 - 100 + 4} text-anchor="end">1.0</text>
+    <text class="axis" x="28" y="204" text-anchor="end">0</text>
+    <line class="spl" x1="34" x2="630" y1="100" y2="100" />
+    <text class="axis" x="626" y="94" text-anchor="end">SP</text>
+    <path class="resp" d="" />
+    <text class="axis" x="630" y="216" text-anchor="end">0 → 120 s</text>
+  </svg>
+
+  <ul class="cards">
+    <li class="p" style="--c:#38bdf8"><b>P · ปัจจุบัน</b> ผลักแรงตาม error ตอนนี้ ยิ่งมากยิ่งไว แต่ใช้ P อย่างเดียวจะเหลือ <em>offset</em> และถ้ามากไปจะแกว่ง</li>
+    <li class="i" style="--c:#a855f7"><b>I · อดีต</b> สะสม error ที่ผ่านมาจนลบ offset ได้หมด แต่ถ้าแรงไปจะ overshoot และต้องมี anti-windup</li>
+    <li class="d" style="--c:#f59e0b"><b>D · แนวโน้ม</b> ดูว่า PV กำลังเปลี่ยนเร็วแค่ไหน แล้วเบรกก่อนเลย SP แต่ขยาย noise ด้วย ลูปที่สัญญาณแกว่งไวอย่าง Flow มักไม่ใช้</li>
+  </ul>
+  <p class="result" aria-live="polite"></p>
+</section>
+
+<script>
+  document.querySelectorAll<HTMLElement>('.pidx').forEach((box) => {
+    const K = 0.92, tau = 21.1, theta = 3.65, Kc = 5, Ti = 8, Td = 1.5;
+    const boxes = [...box.querySelectorAll<HTMLInputElement>('input[data-term]')];
+    const on = (t: string) => boxes.find((b) => b.dataset.term === t)!.checked;
+    const X = (t: number) => 34 + (t / 120) * 596;
+    const Y = (v: number) => 200 - Math.max(-0.05, Math.min(1.85, v)) * 100;
+
+    function run() {
+      const p = on('p'), i = on('i'), d = on('d');
+      box.querySelectorAll<SVGGElement>('[data-branch]').forEach((g) => g.classList.toggle('off', !on(g.dataset.branch!)));
+      const dt = 0.02, buf: number[] = Array(Math.round(theta / dt)).fill(0);
+      let y = 0, I = 0, yf = 0, yfPrev = 0, max = 0, settle = 0;
+      const pts: string[] = [];
+      for (let n = 0; n <= 120 / dt; n++) {
+        const t = n * dt, e = (t < 2 ? 0 : 1) - y;
+        I += e * dt;
+        let u = 0;
+        if (p) u += Kc * e;
+        if (i) u += (Kc / Ti) * I;
+        if (d) { yf += ((y - yf) * dt) / (Td / 10 + dt); u += (-Kc * Td * (yf - yfPrev)) / dt; }
+        yfPrev = yf;
+        buf.push(u);
+        y += ((K * buf.shift()! - y) * dt) / tau;
+        max = Math.max(max, y);
+        if (Math.abs(y - 1) > 0.02) settle = t;
+        if (n % 25 === 0) pts.push(`${X(t).toFixed(1)},${Y(y).toFixed(1)}`);
+      }
+      box.querySelector('.resp')!.setAttribute('d', `M${pts.join(' L')}`);
+      const name = [p && 'P', i && 'I', d && 'D'].filter(Boolean).join('') || 'ไม่มีตัวควบคุม';
+      box.querySelector('.preset')!.textContent = name;
+      const end = y;
+      const msg = !p && !i && !d
+        ? 'ไม่มี feedback เลย PV ไม่ไปไหน'
+        : !i
+          ? `ไม่มี I → ค้างที่ ${(end * 100).toFixed(0)} % ของ SP (offset ${((1 - end) * 100).toFixed(0)} %)`
+          : `Overshoot ${Math.max(0, (max - 1) * 100).toFixed(0)} % · นิ่งใน ±2 % ที่ ${settle >= 119 ? '> 120' : settle.toFixed(0)} s`;
+      box.querySelector('.result')!.textContent = `${name}: ${msg}`;
+    }
+    boxes.forEach((b) => b.addEventListener('change', run));
+    run();
+  });
+</script>
+
+<style>
+  .pidx { margin: 2rem 0; padding: 1.2rem 1.3rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: var(--shadow); }
+  .toggles { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+  .tg input { position: absolute; opacity: 0; pointer-events: none; }
+  .tg .box { display: inline-grid; place-items: center; width: 46px; height: 46px; border-radius: 14px; border: 2px solid var(--line); font: 800 1.2rem var(--mono); color: var(--muted); cursor: pointer; transition: all 0.2s; }
+  .tg input:checked + .box { border-color: var(--c); color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); }
+  .tg input:focus-visible + .box { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .preset { margin-left: 0.4rem; font: 700 1rem var(--mono); }
+  svg { width: 100%; height: auto; display: block; }
+  .diagram { margin: 1rem 0 0.4rem; color: var(--muted); }
+  .wires line, .branch line { stroke: currentColor; stroke-width: 1.8; }
+  .sum { fill: var(--surface); stroke: var(--text); stroke-width: 1.8; }
+  .sign { font: 700 14px var(--mono); fill: var(--text); }
+  .lbl { font: 600 13px var(--mono); fill: var(--text); }
+  .lbl.small { font-size: 11px; fill: var(--muted); }
+  .blk { fill: var(--chip); stroke: var(--line); stroke-width: 1.5; }
+  .btxt { font: 600 11px var(--font); fill: var(--text); text-anchor: middle; }
+  .branch { color: var(--c); transition: opacity 0.25s; }
+  .branch rect { fill: color-mix(in srgb, var(--c) 12%, var(--surface)); stroke: var(--c); stroke-width: 1.8; }
+  .bname { font: 800 16px var(--mono); fill: var(--c); }
+  .beq { font: 12px var(--mono); fill: var(--text); }
+  .branch.off { opacity: 0.18; }
+  .chart { background: color-mix(in srgb, var(--chip) 50%, transparent); border-radius: 12px; margin-top: 0.6rem; }
+  .grid line { stroke: var(--line); }
+  .axis { font: 10px var(--mono); fill: var(--muted); }
+  .spl { stroke: var(--muted); stroke-dasharray: 6 6; }
+  .resp { fill: none; stroke: var(--accent); stroke-width: 2.6; stroke-linejoin: round; }
+  .cards { list-style: none; padding: 0; margin: 0.9rem 0 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.7rem; }
+  @media (max-width: 700px) { .cards { grid-template-columns: 1fr; } }
+  .cards li { padding: 0.8rem 0.9rem; border: 1px solid var(--line); border-top: 3px solid var(--c); border-radius: 12px; font-size: 0.88rem; line-height: 1.65; }
+  .cards b { display: block; color: var(--c); font-family: var(--mono); margin-bottom: 0.2rem; }
+  .result { margin: 0.8rem 0 0; padding: 0.55rem 0.9rem; border-radius: 10px; background: var(--chip); font: 600 0.88rem var(--mono); }
+</style>
