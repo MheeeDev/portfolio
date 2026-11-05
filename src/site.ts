@@ -4,7 +4,7 @@ export const site = {
   headline: 'Automation & Industrial Software Engineer',
   tagline: 'PLC · SCADA · OT/IT integration — from the Sequence of Operation to site acceptance.',
   // Home page hero. The last word of the slogan is drawn in the accent colour.
-  greeting: 'สวัสดีครับ ยินดีที่ได้รู้จัก',
+  greeting: 'สวัสดีครับ เค้กเองนะ 👋',
   slogan: 'Build. Test. Commission. Share.',
   sloganTh: 'ลงมือสร้าง · ทดสอบให้มั่นใจ · ส่งมอบหน้างานจริง · แล้วเอามาแชร์ต่อ',
   intro: 'แชร์ความรู้งาน Automation จากหน้างานจริง ทั้ง PLC, SCADA, OT/IT และเครื่องมือ AI ที่ช่วยให้ทำงานเร็วขึ้น',

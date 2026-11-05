@@ -50,7 +50,7 @@ const channels = [...site.links, { label: 'Email', href: `mailto:${site.email}` 
         {lead
           ? <a class="btn primary big" href={url('blog/')} lang="th">อ่านบทความล่าสุด <span aria-hidden="true">→</span></a>
           : <a class="btn primary big" href={url('projects/')}>See my projects <span aria-hidden="true">→</span></a>}
-        <a class="btn big" href={url('about/')} lang="th">รู้จักผม <span aria-hidden="true">→</span></a>
+        <a class="btn big" href={url('about/')} lang="th">รู้จักเค้ก <span aria-hidden="true">→</span></a>
         {site.cvFile && <a class="btn big" href={url(site.cvFile)}>Download CV</a>}
       </p>
       {site.now && <p class="now rise" lang="th" style="--i:8"><span class="led" aria-hidden="true"></span>{site.now}</p>}
@@ -78,7 +78,7 @@ const channels = [...site.links, { label: 'Email', href: `mailto:${site.email}` 
   <section class="wrap wide block">
     <header class="head center" data-reveal>
       <p class="eyebrow">What I do</p>
-      <h2 lang="th">สิ่งที่ผมทำ</h2>
+      <h2 lang="th">สิ่งที่เราทำ</h2>
       <p class="muted">{site.tagline}</p>
     </header>
     <ul class="tiles">
@@ -164,7 +164,7 @@ const channels = [...site.links, { label: 'Email', href: `mailto:${site.email}` 
     <div class="about-grid">
       <div>
         <p class="eyebrow">About</p>
-        <h2 lang="th">เกี่ยวกับผม</h2>
+        <h2 lang="th">เกี่ยวกับเค้ก</h2>
         <p class="about-text">
           Automation engineer with three years at system integrators — PLC, HMI and SCADA on Siemens, Rockwell and
           Ignition, and the software around them. A chemical process engineer by degree, so I read the P&amp;ID before the I/O list.
@@ -174,7 +174,7 @@ const channels = [...site.links, { label: 'Email', href: `mailto:${site.email}` 
             <li><a href={url('about/#credentials')} title={`${c.title} — ${c.issuer}, ${c.date}`}><span class="tick" aria-hidden="true">✓</span>{c.short}</a></li>
           ))}
         </ul>
-        <p><a href={url('about/')} lang="th">อ่านเพิ่มเติมเกี่ยวกับผม →</a></p>
+        <p><a href={url('about/')} lang="th">อ่านเพิ่มเติมเกี่ยวกับเค้ก →</a></p>
       </div>
       <div class="channels">
         <p class="muted" lang="th">ติดตามและติดต่อได้ที่</p>
@@ -190,7 +190,7 @@ const channels = [...site.links, { label: 'Email', href: `mailto:${site.email}` 
       <h2 lang="th">มีงานหรือโปรเจกต์อยากคุยกัน?</h2>
       <p class="muted">For roles, projects or a question about an article, email is the fastest way to reach me.</p>
       <p class="actions center-row">
-        <a class="btn primary big" href={url('contact/')} lang="th">ติดต่อผม <span aria-hidden="true">→</span></a>
+        <a class="btn primary big" href={url('contact/')} lang="th">ติดต่อเค้ก <span aria-hidden="true">→</span></a>
         <a class="btn big" href={`mailto:${site.email}`}>{site.email}</a>
       </p>
     </div>
