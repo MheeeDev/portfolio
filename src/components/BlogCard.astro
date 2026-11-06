@@ -37,8 +37,9 @@ const href = url(`blog/${post.id}/`);
   .bcard:hover .thumb :global(img) { transform: scale(1.04); }
   .fallback { display: grid; place-items: center; width: 100%; height: 100%; background: radial-gradient(circle at 30% 20%, var(--accent-soft), var(--surface) 70%); }
   .fallback span { font-family: var(--mono); font-size: 1.5rem; color: var(--accent); }
-  .play { position: absolute; left: 50%; top: 50%; width: 58px; height: 40px; transform: translate(-50%, -50%); background: rgb(0 0 0 / 0.7); border-radius: 10px; }
-  .play::after { content: ''; position: absolute; left: 23px; top: 11px; border-style: solid; border-width: 9px 0 9px 15px; border-color: transparent transparent transparent #fff; }
+  /* Bottom-right corner, so the badge never covers the headline on the cover. */
+  .play { position: absolute; right: 12px; bottom: 12px; width: 46px; height: 32px; background: rgb(15 23 42 / 0.82); border-radius: 9px; box-shadow: 0 4px 12px rgb(0 0 0 / 0.25); transition: background 0.2s; }
+  .play::after { content: ''; position: absolute; left: 18px; top: 9px; border-style: solid; border-width: 7px 0 7px 12px; border-color: transparent transparent transparent #fff; }
   .bcard:hover .play { background: #f00; }
   .body { display: flex; flex-direction: column; gap: 0.5rem; padding: 1.2rem 1.3rem 1.4rem; flex: 1; }
   .body p, .body h3 { margin: 0; }
