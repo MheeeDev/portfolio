@@ -1,0 +1,79 @@
+---
+// Point-to-point vs Unified Namespace: readers add systems and watch the number of connections.
+// Used in the unified-namespace article.
+import { hubSvg, meshCount, meshSvg, SYSTEMS } from './uns-hub';
+const start = 6;
+---
+<figure class="unshub" data-reveal data-n={start}>
+  <div class="ctl">
+    <label for="uns-n">จำนวนระบบในโรงงาน <output>{start}</output></label>
+    <input id="uns-n" type="range" min="3" max={SYSTEMS.length} step="1" value={start} />
+  </div>
+  <div class="panels">
+    <div class="panel bad">
+      <p class="tag" lang="en">POINT-TO-POINT</p>
+      <svg viewBox="0 0 320 300" role="img" aria-label="ทุกระบบต่อตรงถึงกัน"><g class="draw" set:html={meshSvg(start)} /></svg>
+      <p class="count"><span class="v mesh">{meshCount(start)}</span> เส้นเชื่อมที่ต้องดูแล</p>
+    </div>
+    <div class="panel good">
+      <p class="tag" lang="en">UNIFIED NAMESPACE</p>
+      <svg viewBox="0 0 320 300" role="img" aria-label="ทุกระบบต่อเข้า Broker ตัวเดียว"><g class="draw" set:html={hubSvg(start)} /></svg>
+      <p class="count"><span class="v hubn">{start}</span> เส้นเชื่อมที่ต้องดูแล</p>
+    </div>
+  </div>
+  <figcaption>เพิ่มระบบที่ <span class="next">{start + 1}</span> แบบจุดต่อจุดต้องเดินสายเพิ่ม <strong class="addm">{start}</strong> เส้น ส่วน UNS เพิ่มแค่ <strong>1</strong> เส้น</figcaption>
+</figure>
+
+<script>
+  import { hubSvg, meshCount, meshSvg } from './uns-hub';
+  document.querySelectorAll<HTMLElement>('.unshub').forEach((box) => {
+    const input = box.querySelector<HTMLInputElement>('input')!;
+    const [mesh, hub] = box.querySelectorAll<SVGGElement>('.draw');
+    const set = (sel: string, v: number) => (box.querySelector(sel)!.textContent = String(v));
+    input.addEventListener('input', () => {
+      const n = Number(input.value);
+      mesh.innerHTML = meshSvg(n);
+      hub.innerHTML = hubSvg(n);
+      set('output', n);
+      set('.mesh', meshCount(n));
+      set('.hubn', n);
+      set('.next', n + 1);
+      set('.addm', n);
+    });
+  });
+</script>
+
+<style>
+  .unshub { margin: 2rem 0; padding: 1.2rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); --bad: #e11d48; }
+  .ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; margin-bottom: 0.8rem; }
+  .ctl label { font-weight: 600; }
+  .ctl output { display: inline-block; min-width: 2ch; margin-left: 0.3rem; font: 700 1.1rem var(--mono); color: var(--accent); }
+  .ctl input { flex: 1; min-width: 160px; accent-color: var(--accent); }
+  .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+  @media (max-width: 600px) { .panels { grid-template-columns: 1fr; } }
+  .panel { border: 1px solid var(--line); border-radius: 14px; padding: 0.7rem 0.7rem 0.9rem; }
+  .panel.bad { background: color-mix(in srgb, var(--bad) 5%, var(--surface)); }
+  .panel.good { background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+  .tag { margin: 0; font: 700 0.68rem var(--mono); letter-spacing: 0.1em; }
+  .bad .tag { color: var(--bad); }
+  .good .tag { color: var(--accent); }
+  svg { display: block; width: 100%; height: auto; }
+  .count { margin: 0; text-align: center; font-size: 0.9rem; color: var(--muted); }
+  .count .v { font: 800 1.6rem var(--mono); margin-right: 0.3rem; }
+  .bad .v { color: var(--bad); }
+  .good .v { color: var(--accent); }
+  figcaption { text-align: center; font-size: 0.9rem; color: var(--muted); margin-top: 0.9rem; }
+  figcaption strong { color: var(--text); }
+
+  .draw :global(.wire) { stroke: var(--bad); stroke-opacity: 0.35; stroke-width: 1.2; }
+  .draw :global(.spoke) { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 4 5; }
+  .draw :global(.node rect) { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
+  .draw :global(.node text), .draw :global(.hub text) { font: 600 10.5px var(--mono); fill: var(--text); text-anchor: middle; }
+  .draw :global(.hub circle) { fill: var(--accent); }
+  .draw :global(.hub text) { fill: #fff; font-size: 13px; font-weight: 800; }
+  .draw :global(.hub text.sub) { font-size: 7.5px; font-weight: 600; }
+  @media (prefers-reduced-motion: no-preference) {
+    .draw :global(.spoke) { animation: uns-flow 1.2s linear infinite; }
+  }
+  @keyframes uns-flow { to { stroke-dashoffset: -18; } }
+</style>

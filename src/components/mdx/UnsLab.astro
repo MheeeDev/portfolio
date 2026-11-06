@@ -1,0 +1,91 @@
+---
+// The UNS lab stack: one docker compose file, data flows from the tank through the broker to every consumer.
+// Used in the unified-namespace article.
+const consumers = [
+  { chain: [
+    { name: 'Telegraf', img: 'telegraf:1.32', role: 'Subscribe แล้วเขียนลงฐานข้อมูล' },
+    { name: 'InfluxDB', img: 'influxdb:2.7', port: '8086', role: 'เก็บประวัติ Time-series' },
+    { name: 'Grafana', img: 'grafana:11.3', port: '3300', role: 'Dashboard ดูย้อนหลัง' },
+  ] },
+  { chain: [{ name: 'Ignition', img: 'ignition:8.1', port: '9088', role: 'SCADA / HMI ผ่าน MQTT Engine' }] },
+  { chain: [{ name: 'mosquitto_sub', img: 'คุณ', role: 'ดูข้อความสดจาก Terminal' }] },
+];
+---
+<figure class="lab" data-reveal>
+  <p class="frame" lang="en">docker compose · uns-lab</p>
+  <div class="flow">
+    <div class="col">
+      <span class="k" lang="en">EDGE</span>
+      <div class="box edge"><strong lang="en">TK-101 Simulator</strong><code>python:3.12</code><span>ถังน้ำจำลอง + PI loop</span></div>
+    </div>
+    <span class="pipe" aria-hidden="true"><span class="dash"></span></span>
+    <div class="col">
+      <span class="k" lang="en">UNS</span>
+      <div class="box hub"><strong lang="en">Mosquitto</strong><code>:1883</code><span>MQTT Broker · ที่อยู่เดียวของข้อมูล</span></div>
+    </div>
+    <span class="pipe fan" aria-hidden="true"><span class="dash"></span></span>
+    <div class="col consumers">
+      <span class="k" lang="en">CONSUMERS</span>
+      {consumers.map((c) => (
+        <div class="chain">
+          {c.chain.map((b, i) => (
+            <>
+              {i > 0 && <span class="arrow" aria-hidden="true">→</span>}
+              <div class="box"><strong lang="en">{b.name}</strong><code>{b.img}{b.port && ` :${b.port}`}</code><span>{b.role}</span></div>
+            </>
+          ))}
+        </div>
+      ))}
+    </div>
+  </div>
+  <p class="cmd" lang="en"><span>cmd/sp</span> ← Setpoint ใหม่ย้อนกลับจาก Ignition หรือ Terminal ผ่าน Broker ตัวเดิม</p>
+  <figcaption>ทุกกล่องคุยกับ Broker ตัวเดียว ไม่มีใครต่อตรงหาใคร เพิ่มหรือถอดระบบไหนก็ไม่กระทบตัวอื่น</figcaption>
+</figure>
+
+<style>
+  .lab { margin: 2rem 0; padding: 1.2rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); --edge: #a855f7; }
+  .frame { margin: 0 0 0.8rem; font: 700 0.72rem var(--mono); letter-spacing: 0.08em; color: var(--muted); }
+  .frame::before { content: '🐳 '; }
+  .flow { display: grid; grid-template-columns: minmax(0, 0.85fr) 44px minmax(0, 0.85fr) 30px minmax(0, 2.6fr); align-items: center; padding: 1rem; border: 2px dashed var(--line); border-radius: 16px; }
+  .col { display: flex; flex-direction: column; gap: 0.45rem; min-width: 0; }
+  .k { font: 700 0.64rem var(--mono); letter-spacing: 0.1em; color: var(--muted); }
+  .box { display: flex; flex-direction: column; gap: 0.1rem; padding: 0.6rem 0.75rem; border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 12px; background: color-mix(in srgb, var(--accent) 6%, var(--surface)); min-width: 0; }
+  .box strong { font-size: 0.92rem; }
+  .box code { background: none; padding: 0; font-size: 0.72rem; color: var(--accent); }
+  .box span { font-size: 0.76rem; color: var(--muted); line-height: 1.4; }
+  .edge { border-left-color: var(--edge); background: color-mix(in srgb, var(--edge) 7%, var(--surface)); }
+  .edge code { color: var(--edge); }
+  .hub { background: var(--accent); border-color: var(--accent); }
+  .hub strong, .hub code, .hub span { color: #fff; }
+  .hub span { opacity: 0.85; }
+  .consumers { gap: 0.5rem; position: relative; padding-left: 18px; border-left: 3px solid color-mix(in srgb, var(--accent) 45%, var(--line)); }
+  .consumers .k { margin-left: -18px; padding-left: 18px; }
+  .chain { position: relative; }
+  .chain::before { content: ''; position: absolute; left: -18px; top: 50%; width: 18px; height: 3px; background: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+  .chain { display: flex; align-items: center; gap: 0.35rem; }
+  .chain .box { flex: 1; }
+  .arrow { color: var(--muted); font-weight: 700; }
+  .pipe { position: relative; height: 10px; margin: 1.1rem 0 0; border-radius: 6px; background: var(--line); overflow: hidden; }
+  .pipe.fan { border-radius: 6px 0 0 6px; }
+  .dash { position: absolute; inset: 0; background: repeating-linear-gradient(90deg, var(--accent) 0 8px, transparent 8px 16px); opacity: 0.75; }
+  .cmd { margin: 0.8rem 0 0; font-size: 0.84rem; color: var(--muted); }
+  .cmd span { font-family: var(--mono); font-weight: 700; color: #ea580c; background: color-mix(in srgb, #ea580c 10%, var(--surface)); padding: 0.05rem 0.45rem; border-radius: 6px; margin-right: 0.3rem; }
+  figcaption { text-align: center; font-size: 0.88rem; color: var(--muted); margin-top: 0.9rem; }
+
+  @media (max-width: 760px) {
+    .flow { grid-template-columns: 1fr; gap: 0; }
+    .pipe { justify-self: center; width: 8px; height: 26px; margin: 6px 0; }
+    .dash { background: repeating-linear-gradient(180deg, var(--accent) 0 6px, transparent 6px 12px); }
+    .chain { flex-direction: column; align-items: stretch; }
+    .consumers { padding-left: 14px; }
+    .chain::before { left: -14px; width: 14px; }
+    .pipe.fan { border-radius: 6px; }
+    .arrow { align-self: center; transform: rotate(90deg); }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .dash { animation: lab-flow 1.2s linear infinite; }
+    @media (max-width: 760px) { .dash { animation-name: lab-flowY; } }
+  }
+  @keyframes lab-flow { to { background-position: 16px 0; } }
+  @keyframes lab-flowY { to { background-position: 0 12px; } }
+</style>

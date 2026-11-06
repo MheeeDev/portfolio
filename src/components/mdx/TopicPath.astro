@@ -1,0 +1,117 @@
+---
+// The ISA-95 topic path, and a playground where readers try MQTT wildcards against a small plant.
+// Used in the unified-namespace article.
+import { matches, TOPICS } from './uns-topics';
+const levels = [
+  ['iae-lab', 'Enterprise', 'บริษัท'],
+  ['rayong', 'Site', 'โรงงาน'],
+  ['utilities', 'Area', 'พื้นที่'],
+  ['water', 'Line', 'สายการผลิต / ระบบ'],
+  ['tk101', 'Cell', 'เครื่อง / ถัง'],
+  ['level', 'Tag', 'ค่าที่วัด'],
+];
+const presets = [
+  ['iae-lab/rayong/utilities/water/tk101/level', 'ค่าเดียว'],
+  ['iae-lab/rayong/utilities/water/tk101/+', 'ทุกค่าของ TK-101'],
+  ['iae-lab/+/utilities/water/+/level', 'Level ทุกถัง ทุกโรงงาน'],
+  ['iae-lab/+/+/+/+/status', 'สถานะทุกเครื่อง'],
+  ['iae-lab/rayong/#', 'ทั้งโรงงานระยอง'],
+];
+const start = presets[1][0];
+---
+<figure class="topic" data-reveal>
+  <ol class="path" lang="en">
+    {levels.map(([seg, en, th], i) => (
+      <li style={`--i:${i}`}>
+        <code>{seg}</code>
+        <span class="en">{en}</span>
+        <span class="th" lang="th">{th}</span>
+      </li>
+    ))}
+  </ol>
+
+  <div class="play">
+    <p class="ptitle">ลอง Subscribe ดู</p>
+    <div class="presets">
+      {presets.map(([f, label]) => <button type="button" data-f={f} class:list={{ on: f === start }}>{label}</button>)}
+    </div>
+    <label class="field" lang="en">
+      <span>SUBSCRIBE</span>
+      <input type="text" value={start} spellcheck="false" autocomplete="off" aria-label="Topic filter" />
+    </label>
+    <p class="err" hidden></p>
+    <ul class="topics" lang="en">
+      {TOPICS.map(([t, v]) => (
+        <li class:list={{ hit: matches(start, t) }} data-t={t}><code set:html={t.replaceAll('/', '/<wbr>')} /><span class="val">{v}</span></li>
+      ))}
+    </ul>
+    <p class="sum">ได้รับ <strong class="n">{TOPICS.filter(([t]) => matches(start, t)).length}</strong> จาก {TOPICS.length} topic</p>
+  </div>
+  <figcaption><code>+</code> แทนหนึ่งระดับพอดี · <code>#</code> แทนระดับนั้นและทุกอย่างที่อยู่ข้างใต้ ต้องอยู่ท้ายสุดเสมอ</figcaption>
+</figure>
+
+<script>
+  import { filterError, matches } from './uns-topics';
+  document.querySelectorAll<HTMLElement>('.topic').forEach((box) => {
+    const input = box.querySelector<HTMLInputElement>('input')!;
+    const err = box.querySelector<HTMLElement>('.err')!;
+    const rows = [...box.querySelectorAll<HTMLElement>('.topics li')];
+    const buttons = [...box.querySelectorAll<HTMLButtonElement>('.presets button')];
+    const run = () => {
+      const f = input.value.trim();
+      const problem = filterError(f);
+      err.hidden = !problem;
+      err.textContent = problem;
+      let n = 0;
+      rows.forEach((r) => {
+        const hit = !problem && matches(f, r.dataset.t!);
+        r.classList.toggle('hit', hit);
+        if (hit) n++;
+      });
+      box.querySelector('.n')!.textContent = String(n);
+      buttons.forEach((b) => b.classList.toggle('on', b.dataset.f === f));
+    };
+    input.addEventListener('input', run);
+    buttons.forEach((b) => b.addEventListener('click', () => { input.value = b.dataset.f!; run(); }));
+  });
+</script>
+
+<style>
+  .topic { margin: 2rem 0; padding: 1.2rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); }
+  .path { list-style: none; margin: 0 0 1.2rem; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0.4rem; }
+  .path li { margin: 0 !important; position: relative; display: flex; flex-direction: column; align-items: center; gap: 0.15rem; padding: 0.6rem 0.3rem; border-radius: 12px; text-align: center;
+    background: color-mix(in srgb, var(--accent) calc(5% + var(--i) * 3%), var(--surface)); border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--line)); }
+  .path li:not(:last-child)::after { content: '/'; position: absolute; right: -0.42rem; top: 0.55rem; font: 700 1rem var(--mono); color: var(--muted); z-index: 1; }
+  .path code { background: none; padding: 0; font-weight: 700; font-size: 0.86rem; color: var(--accent); word-break: break-all; }
+  .path .en { font: 700 0.66rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text); }
+  .path .th { font-size: 0.74rem; color: var(--muted); line-height: 1.35; }
+  @media (max-width: 640px) {
+    .path { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .path li:nth-child(3)::after { display: none; }
+  }
+
+  .play { border: 1px solid var(--line); border-radius: 14px; padding: 0.9rem; }
+  .ptitle { margin: 0 0 0.5rem; font-weight: 700; }
+  .presets { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.7rem; }
+  .presets button { font: inherit; font-size: 0.82rem; padding: 0.3rem 0.75rem; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--text); cursor: pointer; }
+  .presets button:hover { border-color: var(--accent); }
+  .presets button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .field { display: flex; align-items: stretch; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .field span { display: grid; place-items: center; padding: 0 0.7rem; font: 700 0.68rem var(--mono); letter-spacing: 0.08em; background: #0f172a; color: #7dd3fc; }
+  .field input { flex: 1; min-width: 0; border: 0; padding: 0.55rem 0.7rem; font: 0.86rem var(--mono); background: var(--chip); color: var(--text); }
+  .field input:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .err { margin: 0.5rem 0 0; font-size: 0.85rem; color: #e11d48; }
+  .topics { list-style: none; margin: 0.8rem 0 0; padding: 0; display: grid; gap: 0.25rem; }
+  .topics li { margin: 0 !important; display: flex; justify-content: space-between; gap: 0.8rem; padding: 0.3rem 0.6rem; border-radius: 8px; font-size: 0.8rem; color: var(--muted); opacity: 0.55; transition: opacity 0.2s, background 0.2s; }
+  .topics li code { background: none; padding: 0; overflow-wrap: break-word; }
+  @media (max-width: 640px) {
+    .topics li { flex-direction: column; gap: 0; font-size: 0.76rem; }
+    .val { align-self: flex-end; }
+  }
+  .topics li.hit { opacity: 1; color: var(--text); background: color-mix(in srgb, #22c55e 12%, var(--surface)); }
+  .topics li.hit code::before { content: '● '; color: #22c55e; }
+  .val { font-family: var(--mono); white-space: nowrap; }
+  .sum { margin: 0.6rem 0 0; font-size: 0.88rem; color: var(--muted); }
+  .sum strong { color: #16a34a; font-family: var(--mono); }
+  figcaption { text-align: center; font-size: 0.88rem; color: var(--muted); margin-top: 0.9rem; }
+</style>
