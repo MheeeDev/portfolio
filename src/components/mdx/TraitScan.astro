@@ -1,0 +1,42 @@
+---
+// Six working traits read back from past projects, each with the evidence behind it.
+// Used in the chemical-engineer-to-automation article.
+const traits = [
+  { code: 'PROCESS_FIRST', icon: '⚗️', title: 'คิดจาก Process ก่อนโค้ด', text: 'ก่อนเขียน Logic บรรทัดแรก เราอยากรู้ก่อนว่า Process ตอบสนองยังไง', proof: ['Step test 10 จุดในปริญญานิพนธ์', 'เครื่องมือ FOPDT → IMC ที่เขียนเอง', 'Faceplate ที่ออกแบบให้คนคุม Process'] },
+  { code: 'BRIDGE_BUILDER', icon: '🔗', title: 'นักเชื่อมสองโลก', text: 'งานที่ชอบที่สุดมักอยู่ตรงรอยต่อ ระหว่างของสองอย่างที่ไม่เคยคุยกัน', proof: ['Simulink ↔ S7-1500 ผ่าน OPC UA', 'PLC ↔ MES แบบ Request/Response', 'S7-1200 ↔ S7-300 ด้วย PUT/GET'] },
+  { code: 'TEST_BEFORE_TRUST', icon: '🧪', title: 'ทดสอบก่อนเชื่อ', text: 'นิสัยจากห้องแล็บเคมี ผลที่ยังไม่ได้พิสูจน์คือสมมติฐาน ไม่ใช่ข้อเท็จจริง', proof: ['I/O test 100 % + เดินเครื่อง 72 ชั่วโมง', 'เจอสาย E-stop ขัดกันก่อนจ่ายไฟ', 'Backup ที่ลองกู้คืนจริงแล้ว'] },
+  { code: 'LEARN_BUILD_TEACH', icon: '🎓', title: 'เรียน → สร้าง → สอน', text: 'เรียนอะไรมา ต้องสร้างให้ได้ แล้วสอนต่อให้ได้ ถึงจะนับว่าเข้าใจ', proof: ['มาตรฐานฝีมือแรงงาน PLC 92.85 %', 'คอร์สออนไลน์ 29 บท', 'คลิป YouTube 90+ คลิป'] },
+  { code: 'AUTOMATE_THE_AUTOMATION', icon: '⚙️', title: 'ไม่ยอมทำงานซ้ำด้วยมือ', text: 'ถ้าต้องทำเกินสองครั้ง เราจะหาทางให้เครื่องทำแทน แม้แต่งานของตัวเอง', proof: ['56 Routine สร้างจาก CSV', 'สินค้ารุ่นใหม่ = แถวใหม่ใน Database', 'มาตรฐานวิศวกรรม 11 ฉบับ'] },
+  { code: 'BRAND_AGNOSTIC', icon: '🧭', title: 'ไม่ผูกกับยี่ห้อ', text: 'เครื่องมือเปลี่ยนได้ หลักคิดไม่เปลี่ยน จึงข้ามแพลตฟอร์มได้เร็ว', proof: ['Siemens · Rockwell · Mitsubishi · Ignition', 'C# · Python · Flutter · Node.js', 'AWS · Docker · InfluxDB'] },
+];
+---
+<div class="scan" data-reveal>
+  <p class="hdr" lang="en"><span class="led" aria-hidden="true"></span>SELF_DIAGNOSTIC · 6 TRAITS FOUND · SOURCE: 12 PROJECTS</p>
+  <div class="grid">
+    {traits.map((t) => (
+      <article class="trait">
+        <p class="code" lang="en"><span aria-hidden="true">{t.icon}</span> {t.code}</p>
+        <h4>{t.title}</h4>
+        <p class="text">{t.text}</p>
+        <ul>{t.proof.map((p) => <li>{p}</li>)}</ul>
+      </article>
+    ))}
+  </div>
+</div>
+
+<style>
+  .scan { margin: 1.6rem 0 2rem; padding: 1.1rem; border: 1px solid var(--line); border-radius: 20px; background: linear-gradient(180deg, var(--accent-soft), var(--surface) 140px); }
+  .hdr { display: flex; align-items: center; gap: 0.55rem; margin: 0 0 1rem; font: 600 0.74rem var(--mono); letter-spacing: 0.08em; color: var(--muted); flex-wrap: wrap; }
+  .led { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 0.8rem; }
+  .trait { padding: 1rem 1.1rem; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); transition: border-color 0.2s, transform 0.2s; }
+  .trait:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .code { margin: 0; font: 700 0.7rem var(--mono); letter-spacing: 0.06em; color: var(--accent); word-break: break-word; }
+  h4 { margin: 0.4rem 0 0; font-size: 1.05rem; }
+  .text { margin: 0.35rem 0 0; font-size: 0.9rem; color: var(--muted); line-height: 1.5; }
+  ul { list-style: none; margin: 0.7rem 0 0; padding: 0.6rem 0 0; border-top: 1px dashed var(--line); }
+  li { margin: 0.2rem 0 !important; padding-left: 1.1rem; position: relative; font-size: 0.84rem; }
+  li::before { content: '✓'; position: absolute; left: 0; color: #22c55e; font-weight: 700; }
+  @media (prefers-reduced-motion: no-preference) { .led { animation: led 2s ease-out infinite; } }
+  @keyframes led { 0% { box-shadow: 0 0 0 0 rgb(34 197 94 / 0.55); } 70%, 100% { box-shadow: 0 0 0 8px rgb(34 197 94 / 0); } }
+</style>

@@ -1,0 +1,24 @@
+---
+// A row of big numbers.  <StatStrip items={[{ value: '12', unit: 'ปี', label: '...' }]} />
+interface Item { value: string; unit?: string; label: string }
+interface Props { items: Item[] }
+const { items } = Astro.props;
+---
+<dl class="stats" data-reveal>
+  {items.map((s) => (
+    <div class="stat">
+      <dt>{s.label}</dt>
+      <dd><span class="v">{s.value}</span>{s.unit && <span class="u">{s.unit}</span>}</dd>
+    </div>
+  ))}
+</dl>
+
+<style>
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 0.8rem; margin: 1.6rem 0; }
+  /* dt comes first in the markup; column-reverse puts the number on top, flex-end keeps it at the top edge. */
+  .stat { display: flex; flex-direction: column-reverse; justify-content: flex-end; padding: 1rem 1.1rem; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+  dt { font-size: 0.85rem; color: var(--muted); line-height: 1.4; }
+  dd { margin: 0 0 0.2rem; display: flex; align-items: baseline; gap: 0.3rem; }
+  .v { font: 800 clamp(1.9rem, 4vw, 2.5rem)/1 var(--font); letter-spacing: -0.04em; background: linear-gradient(90deg, var(--accent), #a855f7); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .u { font-weight: 700; color: var(--muted); }
+</style>

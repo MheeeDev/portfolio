@@ -1,0 +1,75 @@
+---
+// What a chemical engineering degree brings into automation work, row by row.
+// Used in the chemical-engineer-to-automation article.
+const rows = [
+  { chem: 'P&ID และ PFD', chemNote: 'อ่านแบบ Process ออกว่าอะไรไหลไปไหน', auto: 'HMI Overview · Tag list', autoNote: 'อ่าน P&ID ก่อน I/O list เสมอ หน้าจอจึงเรียงตามการไหลของ Process' },
+  { chem: 'Process Dynamics', chemNote: 'Transfer function, Dead time, Time constant', auto: 'PID Tuning', autoNote: 'Step test → FOPDT → IMC λ แทนการจูนด้วยความรู้สึก' },
+  { chem: 'Mass & Energy Balance', chemNote: 'ของเข้า = ของออก + ของสะสม', auto: 'Data Validation', autoNote: 'ค่ามิเตอร์ที่ Balance ไม่ลง คือสัญญาณแรกว่ามีเซนเซอร์เพี้ยน' },
+  { chem: 'Unit Operations', chemNote: 'Filling, Transfer, Distillation, CIP', auto: 'Sequence of Operation', autoNote: 'รู้ว่าแต่ละขั้นต้องรออะไร ก่อนเขียน Step แรกของ Logic' },
+  { chem: 'Process Safety', chemNote: 'HAZOP, What-if, Relief', auto: 'Interlock & Fail-safe', autoNote: 'คิดถึงสภาวะที่แย่ที่สุดก่อน แล้วออกแบบให้ระบบพาตัวเองไปที่ปลอดภัย' },
+  { chem: 'Process Simulation', chemNote: 'Aspen Plus, โมเดลบนคอม', auto: 'Digital Twin', autoNote: 'Simulink + OPC UA ให้ PLC ได้ซ้อมกับ Plant ปลอมก่อนเจอของจริง' },
+];
+---
+<figure class="bridge" data-reveal>
+  <div class="head" aria-hidden="true">
+    <span class="tag chem">CHEMICAL ENGINEERING</span>
+    <span></span>
+    <span class="tag auto">AUTOMATION</span>
+  </div>
+  <ol>
+    {rows.map((r, i) => (
+      <li style={`--i:${i}`}>
+        <div class="side chem">
+          <span class="tag chem m">CHEM</span>
+          <strong>{r.chem}</strong>
+          <span class="note">{r.chemNote}</span>
+        </div>
+        <span class="pipe" aria-hidden="true"><span class="flow"></span></span>
+        <div class="side auto">
+          <span class="tag auto m">AUTO</span>
+          <strong>{r.auto}</strong>
+          <span class="note">{r.autoNote}</span>
+        </div>
+      </li>
+    ))}
+  </ol>
+  <figcaption>ความรู้เคมีไม่ได้หายไป มันไหลต่อไปเป็นวิธีคิดในงาน Automation ทุกวัน</figcaption>
+</figure>
+
+<style>
+  .bridge { margin: 2rem 0; padding: 1.2rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); --chem: #a855f7; }
+  .head, li { display: grid; grid-template-columns: 1fr 64px 1fr; align-items: stretch; }
+  .head { margin-bottom: 0.6rem; }
+  .head .auto { justify-self: start; }
+  ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.7rem; }
+  li { margin: 0 !important; }
+  .side { display: flex; flex-direction: column; gap: 0.15rem; padding: 0.8rem 1rem; border: 1px solid var(--line); border-radius: 14px; }
+  .side.chem { border-left: 4px solid var(--chem); background: color-mix(in srgb, var(--chem) 7%, var(--surface)); }
+  .side.auto { border-left: 4px solid var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--surface)); }
+  strong { font-size: 1rem; }
+  .note { font-size: 0.86rem; color: var(--muted); line-height: 1.45; }
+  .tag { font: 700 0.68rem var(--mono); letter-spacing: 0.1em; justify-self: start; }
+  .tag.chem { color: var(--chem); }
+  .tag.auto { color: var(--accent); }
+  .tag.m { display: none; }
+  .pipe { position: relative; align-self: center; height: 10px; margin: 0 6px; border-radius: 6px; background: var(--line); overflow: hidden; }
+  .pipe::after { content: ''; position: absolute; right: -2px; top: 50%; width: 0; height: 0; transform: translateY(-50%); border: 7px solid transparent; border-left-color: var(--accent); }
+  .flow { position: absolute; inset: 0; background: repeating-linear-gradient(90deg, var(--chem) 0 10px, transparent 10px 20px, var(--accent) 20px 30px, transparent 30px 40px); opacity: 0.7; }
+  figcaption { text-align: center; font-size: 0.88rem; color: var(--muted); margin-top: 0.9rem; }
+
+  @media (max-width: 640px) {
+    .head { display: none; }
+    ol { gap: 1.6rem; }
+    li { grid-template-columns: 1fr; }
+    .tag.m { display: block; }
+    .pipe { justify-self: center; width: 10px; height: 26px; margin: 4px 0; }
+    .pipe::after { display: none; }
+    .flow { background: repeating-linear-gradient(180deg, var(--chem) 0 6px, transparent 6px 12px, var(--accent) 12px 18px, transparent 18px 24px); }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .flow { animation: flow 1.6s linear infinite; }
+    @media (max-width: 640px) { .flow { animation-name: flowY; } }
+  }
+  @keyframes flow { from { background-position: 0 0; } to { background-position: 40px 0; } }
+  @keyframes flowY { from { background-position: 0 0; } to { background-position: 0 24px; } }
+</style>

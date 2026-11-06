@@ -1,0 +1,108 @@
+---
+// The career path drawn as a Sequential Function Chart: steps, transitions, a simultaneous
+// branch (double lines) for the two jobs that run at the same time, and a jump back to learning.
+// Used in the chemical-engineer-to-automation article.
+interface Step { id: string; period: string; title: string; org: string; text: string; tools: string[]; initial?: boolean; active?: boolean }
+
+const before: { step: Step; next: string }[] = [
+  {
+    step: { id: 'S0', initial: true, period: '2018 – 2023', title: 'นักศึกษาวิศวกรรมเคมี', org: 'Chemical Process Engineering · KMUTNB Rayong', text: 'Mass & Energy balance, Unit operations, Process dynamics และการจำลอง Process ด้วย Aspen Plus', tools: ['Aspen Plus', 'P&ID', 'Process Dynamics'] },
+    next: 'สมการบนกระดาษเริ่มอยากขยับวาล์วจริง',
+  },
+  {
+    step: { id: 'S1', period: '2022 – 2023', title: 'ปริญญานิพนธ์ · MPC-based PID', org: 'Pressure process บน S7-1200', text: 'Step test สิบจุดตั้งแต่ 10–100 % ฟิตโมเดล แล้วจูน PID_Compact จากโมเดลที่ได้ ครั้งแรกที่ Theory กับ PLC มาเจอกัน', tools: ['S7-1200', 'PID_Compact', 'IoT2050'] },
+    next: 'อยากเห็นระบบจริงในโรงงาน',
+  },
+  {
+    step: { id: 'S2', period: 'May – Sep 2023', title: 'Engineering Intern', org: 'P.A.M Engineering & Automation', text: 'WinCC client/server SCADA ของระบบบำบัดน้ำ งานติดตั้งและบริการหน้างาน อบรม PCS 7 และเป็นทีมสอน PLC ให้มหาวิทยาลัย', tools: ['WinCC', 'PCS 7', 'TIA Portal'] },
+    next: 'ได้รับความไว้ใจให้เขียนทั้งไลน์',
+  },
+  {
+    step: { id: 'S3', period: 'Sep 2023 – Jan 2025', title: 'Project Engineer / Programmer', org: 'P.A.M Engineering & Automation', text: 'PLC และ HMI ของไลน์บรรจุ Big bag ทั้งไลน์ Retrofit ไลน์ Keg จาก S7-300 เป็น S7-1500 แลกข้อมูล PUT/GET ในโรงนม และระบบคิดค่าไฟของโรงพยาบาล', tools: ['S7-1500', 'WinCC Unified', 'Commissioning'] },
+    next: 'จากเครื่องเดียว สู่ข้อมูลทั้งโรงงาน',
+  },
+];
+
+const parallel: Step[] = [
+  { id: 'S4', active: true, period: 'May 2025 – now', title: 'Automation Engineer', org: 'MIAC Automation', text: 'SCADA บน Ignition, Rockwell ControlLogix, FactoryTalk Optix (C#) และ Traceability กับ MES บน MySQL รวมถึงเครื่องมือจูน PID ด้วย Python และมาตรฐานวิศวกรรมของบริษัท', tools: ['Ignition', 'ControlLogix', 'C# / .NET', 'Python'] },
+  { id: 'S5', active: true, period: '2025 – now · weekend', title: 'Education & Lab Systems', org: 'Pranakorn Energy (part-time)', text: 'Digital Twin ของชุดทดลอง S7-1500 ↔ Simulink คอร์สออนไลน์ 29 บท และ Cloud Lab บน AWS ที่นักศึกษาส่งผล Simulink เข้ามา', tools: ['Simulink', 'OPC UA', 'AWS', 'Grafana'] },
+];
+---
+<figure class="sfc" data-reveal aria-label="Career path drawn as a sequential function chart">
+  <ol class="chain">
+    {before.map(({ step, next }) => (
+      <li>
+        <article class:list={['step', { initial: step.initial }]}>
+          <p class="top"><span class="id">{step.id}</span><span class="period">{step.period}</span></p>
+          <h4>{step.title}</h4>
+          <p class="org">{step.org}</p>
+          <p class="text">{step.text}</p>
+          <ul class="tools">{step.tools.map((t) => <li>{t}</li>)}</ul>
+        </article>
+        <div class="trans"><span class="bar" aria-hidden="true"></span><span class="cond">{next}</span></div>
+      </li>
+    ))}
+    <li class="branch">
+      <div class="dbl" aria-hidden="true"></div>
+      <div class="lanes">
+        {parallel.map((s) => (
+          <article class:list={['step', { active: s.active }]}>
+            <p class="top"><span class="id">{s.id}</span><span class="period">{s.period}</span>{s.active && <span class="token" title="Active step">ACTIVE</span>}</p>
+            <h4>{s.title}</h4>
+            <p class="org">{s.org}</p>
+            <p class="text">{s.text}</p>
+            <ul class="tools">{s.tools.map((t) => <li>{t}</li>)}</ul>
+          </article>
+        ))}
+      </div>
+      <div class="dbl" aria-hidden="true"></div>
+      <div class="trans"><span class="bar" aria-hidden="true"></span><span class="cond mono">LEARN = TRUE <span class="muted">// เงื่อนไขนี้ไม่เคยเป็น false</span></span></div>
+      <p class="jump"><span aria-hidden="true">↺</span> JUMP → S0 · กลับไปเป็นนักเรียนใหม่ทุกครั้งที่เจอของใหม่</p>
+    </li>
+  </ol>
+  <figcaption>SFC ของเส้นทางนี้ · กรอบคู่คือ Initial step · เส้นคู่คือสองงานที่วิ่งขนานกัน · จุดเขียวคือ Step ที่กำลัง Active</figcaption>
+</figure>
+
+<style>
+  .sfc { margin: 2rem 0; padding: 1.4rem 1.2rem 1rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); background-image: radial-gradient(circle, color-mix(in srgb, var(--muted) 20%, transparent) 1px, transparent 1.3px); background-size: 20px 20px; }
+  .chain { list-style: none; margin: 0 auto; padding: 0; max-width: 640px; }
+  .chain > li { margin: 0 !important; display: flex; flex-direction: column; align-items: stretch; }
+  .step { position: relative; padding: 0.9rem 1.1rem 1rem; border: 2px solid var(--text); border-radius: 6px; background: var(--surface); }
+  .step.initial { outline: 2px solid var(--text); outline-offset: 4px; margin: 6px; }
+  .step.active { border-color: #22c55e; box-shadow: 0 0 0 4px color-mix(in srgb, #22c55e 18%, transparent); }
+  .top { display: flex; align-items: center; gap: 0.6rem; margin: 0; }
+  .id { font: 800 0.8rem var(--mono); padding: 0.05rem 0.45rem; border-radius: 4px; background: var(--text); color: var(--surface); }
+  .active .id { background: #22c55e; color: #05230f; }
+  .period { font: 500 0.78rem var(--mono); color: var(--accent); letter-spacing: 0.03em; }
+  .token { margin-left: auto; display: inline-flex; align-items: center; gap: 0.35rem; font: 700 0.66rem var(--mono); letter-spacing: 0.1em; color: #22c55e; }
+  .token::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: #22c55e; }
+  h4 { margin: 0.45rem 0 0; font-size: 1.08rem; line-height: 1.35; }
+  .org { margin: 0.1rem 0 0; font-size: 0.86rem; color: var(--muted); }
+  .text { margin: 0.5rem 0 0; font-size: 0.93rem; line-height: 1.55; }
+  .tools { list-style: none; display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.6rem 0 0; padding: 0; }
+  .tools li { margin: 0 !important; font: 500 0.72rem var(--mono); padding: 0.12rem 0.5rem; border-radius: 999px; background: var(--chip); color: var(--muted); }
+
+  /* Transition: vertical link with a short horizontal bar and the condition beside it. */
+  .trans { position: relative; height: 64px; margin-left: 2.2rem; border-left: 2px solid var(--text); display: flex; align-items: center; }
+  .bar { position: absolute; left: -13px; top: 50%; width: 24px; height: 3px; background: var(--text); transform: translateY(-50%); }
+  .cond { margin-left: 1.3rem; font-size: 0.9rem; font-weight: 600; color: var(--accent); }
+  .cond.mono { font-family: var(--mono); font-size: 0.82rem; }
+  .cond .muted { font-weight: 400; }
+
+  .branch { position: relative; }
+  .dbl { height: 7px; border-top: 2px solid var(--text); border-bottom: 2px solid var(--text); margin: 0 0.4rem; }
+  .branch > .dbl:first-child { margin-bottom: 1.1rem; }
+  .lanes { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+  .lanes + .dbl { margin-top: 1.1rem; }
+  @media (max-width: 640px) { .lanes { grid-template-columns: 1fr; } }
+  .jump { margin: 0.2rem 0 0 1.4rem; font: 700 0.8rem var(--mono); letter-spacing: 0.04em; color: #a855f7; }
+  .jump span { font-size: 1.1rem; }
+  figcaption { text-align: center; font-size: 0.85rem; color: var(--muted); margin-top: 1.1rem; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .token::before { animation: tok 1.8s ease-out infinite; }
+    .step.active { animation: act 2.6s ease-in-out infinite; }
+  }
+  @keyframes tok { 0% { box-shadow: 0 0 0 0 rgb(34 197 94 / 0.6); } 70%, 100% { box-shadow: 0 0 0 7px rgb(34 197 94 / 0); } }
+  @keyframes act { 50% { box-shadow: 0 0 0 7px color-mix(in srgb, #22c55e 10%, transparent); } }
+</style>
