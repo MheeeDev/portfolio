@@ -1,0 +1,207 @@
+---
+// The CM_PHASE state machine from the tapioca-starch project, playable.
+// Commands move the phase; the "…ing" states finish on their own, the way Transition.*Ok bits do in the PLC.
+// An alarm holds a running phase and interlocks an idle one, as in the Rasper routine.
+interface Node { id: string; x: number; y: number }
+const nodes: Node[] = [
+  { id: 'Idle', x: 70, y: 60 },
+  { id: 'Init', x: 190, y: 60 },
+  { id: 'Starting', x: 310, y: 60 },
+  { id: 'Running', x: 430, y: 60 },
+  { id: 'Ending', x: 550, y: 60 },
+  { id: 'Complete', x: 670, y: 60 },
+  { id: 'Holding', x: 370, y: 170 },
+  { id: 'Held', x: 490, y: 170 },
+  { id: 'Restarting', x: 610, y: 170 },
+  { id: 'Resetting', x: 190, y: 280 },
+  { id: 'Aborted', x: 430, y: 280 },
+  { id: 'Aborting', x: 610, y: 280 },
+];
+const W = 104;
+const H = 38;
+const commands = ['Start', 'Hold', 'Restart', 'Stop', 'Abort', 'Reset'];
+interface TitleProps { title?: string }
+const { title = 'CM_PHASE — try the commands' } = Astro.props as TitleProps;
+---
+<section class="phase" data-state="Idle" data-alarm="0">
+  <div class="bar">
+    <p class="title">{title}</p>
+    <p class="readout" aria-live="polite">
+      <span class="k">Status</span> <b class="state">Idle</b>
+      <span class="flags"></span>
+    </p>
+  </div>
+
+  <div class="scroll">
+  <svg viewBox="0 0 740 330" role="img" aria-label="Phase state machine: Idle, Init, Starting, Running, Ending, Complete, with Holding, Held, Restarting and Aborting, Aborted, Resetting branches">
+    <defs>
+      <marker id="pm-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M0 0L10 5L0 10z" class="tip" />
+      </marker>
+    </defs>
+    <g class="edges" marker-end="url(#pm-arrow)">
+      <path d="M122 60 H136" /><path d="M242 60 H256" /><path d="M362 60 H376" /><path d="M482 60 H496" /><path d="M602 60 H616" />
+      <path d="M420 79 L388 151" /><path d="M422 170 H436" /><path d="M542 170 H556" /><path d="M590 151 L460 79" />
+      <path d="M670 79 C 690 240, 700 330, 400 322 C 280 318, 240 316, 214 299" />
+      <path d="M556 280 H484" /><path d="M376 280 H244" /><path d="M170 261 L88 79" />
+    </g>
+    <text x="300" y="255" class="note">Abort works from any active state</text>
+    <text x="300" y="132" class="note">Hold · alarm</text>
+    {nodes.map((n) => (
+      <g class="node" data-id={n.id}>
+        <rect x={n.x - W / 2} y={n.y - H / 2} width={W} height={H} rx="11" />
+        <text x={n.x} y={n.y + 5}>{n.id}</text>
+      </g>
+    ))}
+  </svg>
+  </div>
+
+  <div class="wait" hidden><span class="lbl"></span><span class="meter"><span class="fill"></span></span></div>
+
+  <div class="controls">
+    <div class="cmds" role="group" aria-label="Phase commands">
+      {commands.map((c) => <button type="button" class="btn" data-cmd={c}>{c}</button>)}
+    </div>
+    <button type="button" class="btn alarm" aria-pressed="false">⚠ Raise alarm</button>
+  </div>
+
+  <ol class="log" aria-label="Event log"></ol>
+</section>
+
+<script>
+  // Command → state it is accepted in → state it leads to.
+  const ACTIVE = ['Init', 'Starting', 'Running', 'Ending', 'Holding', 'Held', 'Restarting'];
+  const MOVES: Record<string, Record<string, string>> = {
+    Start: { Idle: 'Init' },
+    Hold: { Starting: 'Holding', Running: 'Holding', Restarting: 'Holding' },
+    Restart: { Held: 'Restarting' },
+    Stop: { Running: 'Ending', Held: 'Ending' },
+    Abort: Object.fromEntries(ACTIVE.map((s) => [s, 'Aborting'])),
+    Reset: { Complete: 'Resetting', Aborted: 'Resetting' },
+  };
+  // States that finish on their own once the transition bit comes true.
+  const AUTO: Record<string, [string, string]> = {
+    Init: ['Starting', 'Transition.InitOk'],
+    Starting: ['Running', 'Transition.StartingOk'],
+    Holding: ['Held', 'Transition.HoldingOk'],
+    Restarting: ['Running', 'Transition.RestartingOk'],
+    Ending: ['Complete', 'Transition.EndingOk'],
+    Aborting: ['Aborted', 'Transition.AbortingOk'],
+    Resetting: ['Idle', 'Transition.ResettingOk'],
+  };
+  const STEP_MS = 1100;
+
+  document.querySelectorAll<HTMLElement>('.phase').forEach((box) => {
+    const stateEl = box.querySelector('.state')!;
+    const flagsEl = box.querySelector('.flags')!;
+    const wait = box.querySelector<HTMLElement>('.wait')!;
+    const waitLbl = wait.querySelector('.lbl')!;
+    const fill = wait.querySelector<HTMLElement>('.fill')!;
+    const log = box.querySelector('.log')!;
+    const alarmBtn = box.querySelector<HTMLButtonElement>('.alarm')!;
+    let state = 'Idle';
+    let alarm = false;
+    let timer = 0;
+
+    const note = (text: string) => {
+      const li = document.createElement('li');
+      li.textContent = text;
+      log.prepend(li);
+      while (log.children.length > 5) log.lastElementChild!.remove();
+    };
+
+    const interlocked = () => alarm && state === 'Idle';
+
+    function render() {
+      box.dataset.state = state;
+      box.dataset.alarm = alarm ? '1' : '0';
+      stateEl.textContent = state;
+      const flags = [ACTIVE.includes(state) && 'Active', state === 'Running' && !alarm && 'RunningOK', alarm && 'Alarm', interlocked() && 'Interlocked'].filter(Boolean);
+      flagsEl.textContent = flags.length ? `· ${flags.join(' · ')}` : '';
+      box.querySelectorAll<SVGGElement>('.node').forEach((n) => n.classList.toggle('on', n.dataset.id === state));
+      box.querySelectorAll<HTMLButtonElement>('[data-cmd]').forEach((b) => {
+        const cmd = b.dataset.cmd!;
+        let ok = state in MOVES[cmd];
+        if (alarm && (cmd === 'Start' || cmd === 'Restart')) ok = false;
+        b.disabled = !ok;
+      });
+    }
+
+    function go(next: string, why: string) {
+      clearTimeout(timer);
+      state = next;
+      note(`${why} → ${next}`);
+      render();
+      const auto = AUTO[state];
+      if (!auto) {
+        wait.hidden = true;
+        return;
+      }
+      wait.hidden = false;
+      waitLbl.textContent = `waiting for ${auto[1]}`;
+      fill.style.transition = 'none';
+      fill.style.width = '0%';
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        fill.style.transition = `width ${STEP_MS}ms linear`;
+        fill.style.width = '100%';
+      }));
+      timer = window.setTimeout(() => {
+        go(auto[0], auto[1]);
+        // A phase that reaches Running with the alarm still up is put on hold straight away.
+        if (alarm && state === 'Running') go('Holding', 'Alarm → CMD.Hold');
+      }, STEP_MS);
+    }
+
+    box.querySelectorAll<HTMLButtonElement>('[data-cmd]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const next = MOVES[b.dataset.cmd!][state];
+        if (next) go(next, `CMD.${b.dataset.cmd}`);
+      }),
+    );
+
+    alarmBtn.addEventListener('click', () => {
+      alarm = !alarm;
+      alarmBtn.setAttribute('aria-pressed', String(alarm));
+      alarmBtn.textContent = alarm ? '✓ Clear alarm' : '⚠ Raise alarm';
+      note(alarm ? 'Status.Alarm = 1' : 'Status.Alarm = 0');
+      if (alarm && ['Starting', 'Running', 'Restarting'].includes(state)) go('Holding', 'Alarm → CMD.Hold');
+      else render();
+    });
+
+    render();
+  });
+</script>
+
+<style>
+  .phase { margin: 2rem 0; padding: 1.2rem 1.3rem; border: 1px solid var(--line); border-radius: 20px; background: radial-gradient(circle at 20% 0%, var(--accent-soft), var(--surface) 65%); }
+  .bar { display: flex; justify-content: space-between; align-items: baseline; gap: 0.4rem 1rem; flex-wrap: wrap; }
+  .title { margin: 0; font-weight: 700; font-family: var(--mono); font-size: 0.95rem; }
+  .readout { margin: 0; font-size: 0.95rem; }
+  .readout .k { font: 600 0.72rem var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .readout .state { font-size: 1.15rem; color: var(--accent); }
+  [data-alarm='1'] .readout .state { color: #dc2626; }
+  .flags { font: 0.8rem var(--mono); color: var(--muted); margin-left: 0.35rem; }
+  .scroll { overflow-x: auto; margin: 0.8rem 0 0.2rem; }
+  svg { width: 100%; min-width: 560px; height: auto; display: block; }
+  .edges path { fill: none; stroke: var(--line); stroke-width: 2; }
+  .tip { fill: var(--muted); }
+  .note { font: italic 12px var(--font); fill: var(--muted); }
+  .node rect { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; transition: fill 0.25s, stroke 0.25s; }
+  .node text { font: 600 14px var(--font); fill: var(--text); text-anchor: middle; }
+  .node.on rect { fill: var(--accent); stroke: var(--accent); }
+  .node.on text { fill: var(--surface); }
+  [data-alarm='1'] .node.on rect { fill: #dc2626; stroke: #dc2626; }
+  .wait { display: flex; align-items: center; gap: 0.7rem; font: 0.8rem var(--mono); color: var(--muted); margin: 0.2rem 0 0.4rem; }
+  .wait[hidden] { display: none; }
+  .meter { flex: 1; max-width: 220px; height: 6px; border-radius: 999px; background: var(--chip); overflow: hidden; }
+  .fill { display: block; height: 100%; width: 0; background: var(--accent); }
+  .controls { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.6rem; margin-top: 0.6rem; }
+  .cmds { display: flex; flex-wrap: wrap; gap: 6px; }
+  .phase .btn { padding: 0.35rem 0.9rem; font: 600 0.85rem var(--mono); border-radius: 999px; }
+  .phase .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .alarm[aria-pressed='true'] { border-color: #dc2626; color: #dc2626; }
+  .log { list-style: none; margin: 0.9rem 0 0; padding: 0.6rem 0.8rem; min-height: 1.6rem; border-radius: 10px; background: var(--chip); font: 0.78rem/1.6 var(--mono); color: var(--muted); }
+  .log:empty::before { content: 'Event log — press Start'; }
+  .log li:first-child { color: var(--text); }
+  @media print { .controls, .wait, .log { display: none; } }
+</style>

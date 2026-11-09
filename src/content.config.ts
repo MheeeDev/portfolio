@@ -7,7 +7,7 @@ const month = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Use YYYY-MM, e.g. 202
 // Every project must fill in all of these. A missing or misspelled field fails the build,
 // which is what keeps every project page in the same pattern.
 const projects = defineCollection({
-  loader: glob({ pattern: '*/index.md', base: './src/content/projects' }),
+  loader: glob({ pattern: '*/index.{md,mdx}', base: './src/content/projects' }),
   schema: ({ image }) =>
     z.object({
       title: z.string().min(5),

@@ -1,0 +1,175 @@
+---
+title: สองไลน์ ห้องสมุดเดียว · บันทึกงานอัปเกรด PLC และ SCADA โรงงานแป้งมันสำปะหลัง ด้วย Phase-Based Control
+summary: งานจริงจาก CompactLogix และ Ignition กับอุปกรณ์ 401 ตัวใน 2 ไลน์ ตั้งแต่ Instrument List, AOI Library, Phase State Machine, FAT, Commissioning 5 สัปดาห์ ไปจนถึงงานแก้ผ่าน VPN ในปีถัดมา โดยไม่ต้องรื้อหน้าจอ
+date: 2026-11-09
+category: scada
+tags: [CompactLogix, Ignition, Phase Control, Commissioning, SCADA, Remote]
+lang: th
+cover: ./cover.webp
+coverAlt: ภาพปก Two lines One library บันทึกงานอัปเกรด PLC และ SCADA โรงงานแป้ง มีภาพ Phase State Machine ตารางแถวเดียวใน Instrument List ที่สร้าง 5 ชั้น Faceplate TB4/1 แบบ VSD และโลโก้ Rockwell กับ Ignition
+draft: false
+---
+
+import Quote from '../../../components/mdx/Quote.astro';
+import StatStrip from '../../../components/mdx/StatStrip.astro';
+import Callout from '../../../components/mdx/Callout.astro';
+import DeviceFlow from '../../../components/mdx/DeviceFlow.astro';
+import PhaseMachine from '../../../components/mdx/PhaseMachine.astro';
+import TbFaceplate from '../../../components/mdx/TbFaceplate.astro';
+
+งานนี้เป็นงาน Automation ที่ **ครบวงจร** ที่สุดงานหนึ่งที่เราเคยทำครับ
+ได้แตะทุกชั้นของระบบ ตั้งแต่อุปกรณ์สนาม → Remote I/O → PLC → SCADA → Report → ทดสอบกับช่างหน้างาน
+แล้วปีถัดมายังต้องกลับมาแก้โปรแกรมของตัวเองผ่าน VPN อีกรอบ
+
+สิ่งที่อยากเล่าไม่ใช่แค่ "ทำอะไรไปบ้าง" แต่เป็น **วิธีวางโครงสร้าง** ที่ทำให้ระบบ 400 กว่าอุปกรณ์ 2 ไลน์
+ยังแก้ต่อได้อีกเป็นปีโดยไม่พังครับ
+
+<Quote en="Build the library once. Build the plant from the library." kicker="// PROJECT LOG · TAPIOCA STARCH">
+สร้าง**ห้องสมุด**ครั้งเดียว · แล้วสร้าง**โรงงาน**จากห้องสมุดนั้น
+</Quote>
+
+<StatStrip items={[
+  { value: '401', label: 'อุปกรณ์สนามใน Instrument List' },
+  { value: '119', label: 'Phase บน State Machine เดียวกัน' },
+  { value: '~7,200', label: 'Tag ใน Ignition' },
+  { value: '5', unit: 'สัปดาห์', label: 'Commissioning (สัปดาห์ 2–5 ผ่าน VPN)' },
+]} />
+
+## ภาพรวมโปรเจกต์
+
+| หัวข้อ | รายละเอียด |
+|---|---|
+| ลักษณะงาน | อัปเกรด PLC และ SCADA โรงงานแป้งมันสำปะหลัง 2 สายการผลิต |
+| PLC | Allen-Bradley CompactLogix 1769-L36ERM · Studio 5000 v37 |
+| Remote I/O | POINT I/O 1734 ผ่าน EtherNet/IP |
+| SCADA | Ignition Vision + Reporting |
+| ส่วนที่เราทำ | ออกแบบ Tag และ I/O, เขียน PLC, ทำ SCADA, FAT, Commissioning, เอกสาร |
+
+ทั้งสองไลน์แบ่งเป็น 5 พื้นที่เหมือนกัน คือ **Front Line**, **Extraction**, **Separation**, **Drying** และ **Utility**
+และใช้ชื่อชุดเดียวกันทั้งใน PLC routine, SCADA tag folder และหน้าจอ
+เรื่องเล็กแต่ได้ผลใหญ่มากครับ เวลา Debug หน้างาน ช่างชี้หน้าจอปุ๊บ เราเปิด Routine ตรงได้เลย ไม่ต้องแปลภาษากันก่อน
+
+## Instrument List คือต้นทางของทุกอย่าง
+
+ทุกอย่างเริ่มจาก Excel ไฟล์เดียว มีคอลัมน์ Site, Line, Area, TagName, Description และ **Type**
+คอลัมน์ Type คือพระเอกครับ เพราะมันไม่ใช่แค่คำบรรยาย แต่เป็น **คำสั่ง** ว่าจะ Generate อะไรต่อ
+ลองกดเปลี่ยนชนิดอุปกรณ์ดูได้เลยว่าแถวเดียวไหลไปสร้างอะไรบ้าง
+
+<DeviceFlow title="แถวเดียวใน Excel ไหลไปได้ 5 ชั้น" />
+
+ชื่อ Tag ใช้เลขจาก P&ID เป็นแกน แล้วต่อท้ายด้วยชนิดสัญญาณ เช่น `_REM`, `_RUN`, `_START`
+สัญญาณของอุปกรณ์ตัวเดียวกันเลยมากองรวมกันเองใน Tag Browser และหา Cross-reference ได้ไว
+
+<Callout type="tip" title="ตั้ง Taxonomy ให้ดีตั้งแต่ไฟล์แรก">
+ถ้า Excel ต้นทางถูก ทุกอย่างปลายทาง (PLC tag, SCADA tag, I/O mapping, FAT) จะถูกตามไปด้วย
+ถ้าผิด ก็จะผิดพร้อมกันทั้งระบบ เวลาตรวจที่ไฟล์นี้ไฟล์เดียวจึงคุ้มที่สุดครับ
+</Callout>
+
+## หัวใจของงาน: Control Module Library
+
+ถ้าเขียนมอเตอร์ DOL 188 ตัวแบบ Ladder ตรง ๆ ตัวละ 10 rung ก็คือ **1,880 rung** ที่ต้องแก้ทีละที่
+และวันที่ลูกค้าขอเพิ่ม "Alarm เมื่อ Feedback ไม่มา" คือวันที่งานพังครับ
+
+เราเลยสร้าง **Library ของ Add-On Instruction** ไว้เป็นมาตรฐาน คือ `CM_MotorDOL`, `CM_MotorVSD`, `CM_Valve`,
+`CM_ControlValve`, `CM_AI`, `CM_DI`, `CM_Flow_Counter` และ `CM_PHASE`
+โดยทุกอุปกรณ์ใช้ UDT แบบเดียวกัน แยกเป็น **Command / Status / Parameter / InterlockList / RunHour / VISU**
+
+ชั้นที่คุ้มที่สุดคือ `VISU` ครับ SCADA ผูกกับ `VISU` ชั้นเดียว ไม่ต้องรู้ว่าข้างในเป็น DOL หรือ VSD
+ส่วน `SimOverride` กับ `FaultOverride` ทำให้เราทำ FAT ทั้งเส้นได้ที่โต๊ะ โดยไม่ต้องมีอุปกรณ์จริง
+
+Alarm ของมอเตอร์ส่งออกจาก PLC เป็นตัวเลข (Breaker Fault, Isolator Off, Remote Off, Feedback Fault)
+แล้วให้ Ignition แปลงเป็นข้อความ PLC ไม่ต้องเก็บ String และถ้าจะเพิ่มภาษาไทย ก็แก้ที่ Script ที่เดียว
+
+<Quote en="The screen binds to VISU, never to the logic behind it.">
+หน้าจอผูกกับ **VISU** · ไม่ผูกกับ **Logic** ข้างหลัง
+</Quote>
+
+## Phase-Based Sequence: ส่วนที่สนุกที่สุด
+
+โรงงานแป้งไม่ใช่ Batch เต็มรูป แต่ก็ไม่ใช่ Continuous ล้วน
+Rasper, Turbo Cyclone, Hydrocyclone, Dryer และ Dosing ต่างมีลำดับ Start-up, Normal Run และ Shutdown ของตัวเอง
+และต้องสั่ง Hold หรือ Abort ได้เมื่อมีปัญหา
+
+เราเลยทำ State Machine เป็น AOI ตัวเดียวชื่อ `CM_PHASE` แล้ว **แยก Transition ออกจาก State**
+Logic ของกระบวนการเขียนอยู่ที่ `Transition.*Ok` เท่านั้น ส่วน State Machine เป็นของกลางที่ไม่ต้องแก้
+ลองกดคำสั่งดูได้ครับ แล้วลองกด Raise alarm ระหว่างที่ Phase กำลังเดิน
+
+<PhaseMachine title="CM_PHASE · ลองกดคำสั่งดู" />
+
+ผลคือทุก Phase ในโรงงานทำงานเหมือนกันหมด **ช่างเรียนหน้าจอครั้งเดียว ใช้ได้ทุกเครื่อง**
+และเพราะแต่ละ Phase เก็บเลข Step, Step Timer และ Step Done ไว้ หน้าจอจึงบอกได้ว่า
+"ตอนนี้อยู่ Step ไหน รออะไร เหลืออีกกี่วินาที" คำถาม "ทำไมมันไม่เดิน" ลดลงไปเยอะมาก
+
+ทั้งโรงงานมี Phase ใช้งานจริง **119 ตัว** (Extraction 51, Separation 30, Front Line 26, Utility 6, Drying 6)
+บางชนิดต้องแยกเวอร์ชัน Line 1 เพราะเครื่องจักรสองไลน์ไม่เหมือนกัน 100%
+ตรงนี้ต้องยอมรับความจริงครับ บางครั้ง **การบังคับให้เหมือนกัน แพงกว่าการแยก Type**
+
+## ฝั่ง SCADA: Ignition ที่สร้างจาก Template
+
+Template Resource 448 ตัว แบ่งเป็นอุปกรณ์มาตรฐาน (Motor, Valve, AI, PID …) หลายขนาด
+สัญลักษณ์เครื่องจักรเฉพาะงานนี้ (Conveyor, Hopper, Rasper, Screw, Sieve) และชิ้นส่วนกลางอย่าง Form, Trend, Theme
+
+เกือบทุก Template มี **Drop Target** คู่กัน ลาก UDT Instance จาก Tag Browser ไปวางบนหน้าจอ
+แล้ว Parameter จะผูกให้อัตโนมัติ นี่คือสิ่งที่ทำให้อุปกรณ์ราว 820 Instance เสร็จได้ในเวลาของวิศวกรคนเดียว
+
+จาก 147 Window มีหน้า Process จริงไม่ถึง 10 หน้า ที่เหลือเป็น Faceplate, Popup, Alarm, Trend และเครื่องมือที่สองไลน์ใช้ร่วมกัน
+Alarm สำคัญเด้งเข้ามือถือหัวหน้ากะผ่าน LINE พร้อมภาพหน้าจอ
+ส่วน Daily Report มี 6 แบบ (2 ไลน์ × ค่าจริง, เฉลี่ย 15 นาที, เฉลี่ย 1 ชั่วโมง)
+เพราะฝ่ายผลิตอยากเห็นละเอียด ฝ่ายบริหารอยากเห็นภาพรวม ถ้ามี Report เดียวจะไม่มีใครพอใจเลยครับ
+
+## FAT และ Commissioning 5 สัปดาห์
+
+Line 1 มี Remote I/O 2 ตู้ รวม **38 โมดูล 284 ช่อง** ใช้จริง 225 ช่อง และเหลือ Spare 59 ช่อง (ราว 20%)
+เอกสาร FAT ไล่ทุกช่องตั้งแต่โมดูลแรกถึงโมดูลสุดท้าย **ลิสต์ Spare ครบ ไม่ข้าม**
+
+| สัปดาห์ | งานหลัก |
+|---|---|
+| 1 · หน้างาน | ติดตั้งโปรแกรม ตั้งค่า Network PLC ↔ SCADA เริ่ม I/O Test กับช่างของโรงงาน |
+| 2 · VPN | เปิด VPN ตรวจความเสถียร ทดสอบ I/O ต่อ ลิสต์จุดที่สัญญาณไม่ตรงหน้าจอ |
+| 3 · VPN | ทดสอบในสภาวะเดินเครื่องต่าง ๆ ตรวจ Scaling และหน่วย ปรับ Layout หน้าจอ |
+| 4 · VPN | รันทุก Phase จริง Start-up → Normal → Shutdown ทดสอบ Transition, Interlock, Alarm |
+| 5 · VPN | ตรวจ I/O รอบสุดท้าย ปิดงานหน้าจอ ยืนยันพร้อมผลิต |
+
+<Callout type="story" title="สิ่งที่ได้เรียนรู้จริงจากหน้างาน">
+Commissioning ไม่ได้จบที่ "I/O ติด" เวลาราว 60% หมดไปกับ **Scaling, หน่วย และความตรงกันระหว่างสนามกับหน้าจอ**
+และการมีช่างโรงงานอยู่ด้วยทุกวัน ทำให้แก้ของได้ทันที ไม่ต้องสะสมเป็น Punch List
+</Callout>
+
+## ปีถัดมา: แก้งานผ่าน VPN โดยไม่รื้อหน้าจอ
+
+โรงงานขอแก้ 3 เรื่องที่ Turbo Cyclone ซึ่งเราทำผ่าน VPN ทั้งหมด แล้วทดสอบร่วมกับวิศวกรของโรงงานอีก 1 สัปดาห์
+
+1. **เปลี่ยนมอเตอร์ DOL → VSD** ส่ง Speed Reference แทนคำสั่ง ON/OFF ของ Contactor
+   (TB4/1 ของ Line 1 และทั้ง TB4/1, TB4/2 ของ Line 2 ส่วน TB4/2 ของ Line 1 คงเป็น DOL ตาม SOW)
+2. **Valve TB เปิดปิดตาม Vibration** ต่ำกว่า Setpoint ให้เปิด สูงกว่าให้ปิด เพื่อป้องกันเครื่องโดยไม่ต้องรอ Operator
+3. **อัปเดต Faceplate** แสดง Speed (%) และความถี่ (Hz) แบบ Live พร้อมค่า Vibration และช่องตั้ง Setpoint แยกแต่ละสถานี
+
+ลองสลับ DOL ↔ VSD และเลื่อนค่า Vibration ดูได้ครับ
+
+<TbFaceplate title="Faceplate TB4/1 · งานแก้เฟส 2" />
+
+เพราะมี `CM_MotorVSD` อยู่ใน Library ตั้งแต่เฟสแรก และหน้าจอผูกกับ `VISU`
+งานนี้จึงเป็นแค่ **สลับ Control Module + ย้าย Reference** ไม่ใช่เขียน Logic VSD ใหม่ หรือรื้อหน้าจอ
+และเพราะ Spare กับตาราง I/O Mapping พร้อมอยู่แล้ว ก็ไม่ต้องหยุดไลน์เพื่อสั่งโมดูลใหม่
+
+## 7 บทเรียนที่จะเอาไปใช้กับงานต่อไป
+
+1. **ลงทุนกับ Library ก่อนเขียน Logic ของจริง** คุ้มทั้งตอนสร้าง และคุ้มอีกรอบตอนแก้
+2. **แยก State Machine ออกจาก Process Logic** แก้แค่ Transition ส่วนของกลางไม่ต้องแตะ
+3. **ชั้น VISU คือฉนวนกันแรงกระแทก** เปลี่ยนข้างในได้ โดยหน้าจอไม่ต้องรู้ตัว
+4. **Instrument List คือ Single Source of Truth** ตรวจไฟล์นี้ให้มากที่สุด
+5. **เผื่อ Spare I/O ราว 20% และจดไว้ในเอกสาร** งานแก้จะทำผ่าน VPN ได้โดยไม่หยุดไลน์
+6. **Remote ทำได้มากกว่าที่คิด แต่ต้องมีคนที่หน้างาน** ช่างและวิศวกรของโรงงานร่วมทดสอบทุกวัน
+7. **เขียนเอกสารให้ตัวเองในอีกหนึ่งปีอ่าน** Site Report, FAT Mapping และ Tag Export คือของที่เรากลับมาเปิดเองจริง ๆ
+
+ไฟล์ PLC ของ Line 1 เดินทางจาก R1 ถึง **R14** เราตั้งชื่อ Revision ในชื่อไฟล์ (ไม่ใช่ `final2`, `final_ใช้ตัวนี้`)
+และ Export Tag เป็น CSV ทุกครั้งที่ขึ้น Revision ใหม่ เพื่อ Diff ได้ว่าอะไรเพิ่มหรือหายไป
+ถ้าทำใหม่วันนี้ เราจะเก็บไฟล์พวกนี้ไว้ใน Git ตั้งแต่วันแรก และส่งชั้น `VISU` ขึ้น
+[Unified Namespace](/blog/unified-namespace-mqtt-ignition-grafana/) ให้ระบบอื่นมาหยิบข้อมูลเองครับ
+
+<Quote en="Write the docs for the engineer who opens them a year later. It will be you." kicker="// END OF PROJECT · JUMP TO S0">
+เขียนเอกสารให้คนที่จะเปิดอ่านในอีกหนึ่งปี · **คนนั้นคือเราเอง**
+</Quote>
+
+สรุปแบบ Case Study ภาษาอังกฤษอยู่ที่หน้า [Projects](/projects/2025-tapioca-starch-plc-scada-upgrade/) ครับ
+ถ้าอยากคุยเรื่อง Phase-Based Control หรือ Ignition Template ทักมาได้ที่หน้า [ติดต่อ](/contact/) นะครับ

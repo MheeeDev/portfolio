@@ -9,9 +9,10 @@ const problems = [];
 let checked = 0;
 
 for (const name of readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)) {
-  const file = `${dir}${name}/index.md`;
-  if (!existsSync(file)) {
-    problems.push(`${name}: missing index.md`);
+  // Plain Markdown, or MDX when the page uses interactive components.
+  const file = [`${dir}${name}/index.md`, `${dir}${name}/index.mdx`].find((f) => existsSync(f));
+  if (!file) {
+    problems.push(`${name}: missing index.md or index.mdx`);
     continue;
   }
   const text = readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
@@ -19,7 +20,7 @@ for (const name of readdirSync(dir, { withFileTypes: true }).filter((d) => d.isD
   if (/^draft:\s*true/m.test(front)) continue;
   checked++;
 
-  const body = text.slice(front.length + 8).replace(/<!--[\s\S]*?-->/g, '').replace(/```[\s\S]*?```/g, '');
+  const body = text.slice(front.length + 8).replace(/<!--[\s\S]*?-->/g, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/```[\s\S]*?```/g, '');
   const headings = [...body.matchAll(/^## (.+)$/gm)].map((m) => m[1].trim());
   const order = required.map((h) => headings.indexOf(h));
   required.forEach((h, i) => {
