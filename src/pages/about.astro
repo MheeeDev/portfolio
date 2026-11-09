@@ -32,6 +32,19 @@ const experience = [
   },
 ];
 
+// Papers, newest first. Co-authors are not listed by name; the PDF has the full author list.
+const publications = [
+  {
+    kind: 'Conference paper',
+    date: 'Jun 2026',
+    title: 'Digital-Twin-Oriented Pedagogical Integration of BatchSep for Dynamic Modeling and Validation of MeOH/H₂O Batch Distillation',
+    venue: '35th Thai Institute of Chemical Engineering and Applied Chemistry Conference (TIChE2026), Pattaya, Thailand',
+    authors: 'S. Kromthin, co-author (M.I.A.C Automation), with KMUTNB Chemical Engineering and industry partners',
+    detail: 'A four-layer digital twin for a pilot-scale batch distillation lab: Aspen BatchSep dynamic models, MATLAB/Simulink control and estimation, and LabVIEW HMI/SCADA linked over Modbus RTU, MQTT and OPC UA, validated against measured batch data.',
+    file: 'papers/tiche2026-digital-twin-batchsep.pdf',
+  },
+];
+
 const skills = [
   ['HMI / SCADA', 'Ignition Perspective & Vision · WinCC Unified (incl. web client) · WinCC client/server · SIMATIC Comfort and KTP panels · FactoryTalk Optix (C# / .NET) · FactoryTalk View ME · GOT2000 · Siemens Energy Manager PRO'],
   ['Control systems', 'Siemens TIA Portal V17 (LAD, STL, SCL), S7-1200 / S7-1500, S7-300 migration · Rockwell Studio 5000, ControlLogix / CompactLogix · Mitsubishi FX5U and GX Works3 · AOI and control-module libraries · Pilz safety relays · Danfoss, ABB, Schneider and Mitsubishi drives · brushed and brushless DC motors · Siemens Industrial Edge'],
@@ -104,6 +117,23 @@ const skills = [
   </section>
 
   <section class="wrap wide block" data-reveal>
+    <p class="eyebrow">Research</p>
+    <h2 class="section-title" id="publications">Publications</h2>
+    <div class="creds pubs">
+      {publications.map((p) => (
+        <article class="cred spot">
+          <p class="cred-top"><span class="kind">{p.kind}</span><span class="date">{p.date}</span></p>
+          <h3>{p.title}</h3>
+          <p class="issuer">{p.venue}</p>
+          <p class="detail">{p.authors}</p>
+          <p class="detail">{p.detail}</p>
+          <p class="view"><a href={url(p.file)} target="_blank" rel="noopener">Read the paper (PDF) →</a></p>
+        </article>
+      ))}
+    </div>
+  </section>
+
+  <section class="wrap wide block" data-reveal>
     <p class="eyebrow">Proof</p>
     <h2 class="section-title" id="credentials">Licence &amp; certifications</h2>
     <div class="creds">
@@ -167,6 +197,8 @@ const skills = [
   .skills dd { margin: 0.35rem 0 0; color: var(--muted); font-size: 0.92rem; }
 
   .creds { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 1rem; }
+  .pubs { grid-template-columns: minmax(0, 1fr); max-width: 52rem; }
+  .pubs .detail + .detail { margin-top: 0.5rem; }
   .cred { background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--accent); border-radius: 16px; padding: 1.1rem 1.2rem 1.2rem; display: flex; flex-direction: column; box-shadow: var(--shadow); overflow: hidden; }
   .cred p, .cred h3 { margin: 0; }
   .cred-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem !important; }
