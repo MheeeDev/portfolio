@@ -1,7 +1,7 @@
 ---
 import Base from '../../../layouts/Base.astro';
 import PostList from '../../../components/PostList.astro';
-import { categories, getPosts, type Category } from '../../../lib';
+import { categories, getPosts, pinnedFirst, type Category } from '../../../lib';
 
 // One page per category that has at least one post.
 export async function getStaticPaths() {
@@ -13,7 +13,7 @@ export async function getStaticPaths() {
 
 const category = Astro.params.category as Category;
 const { label } = Astro.props;
-const all = await getPosts();
+const all = pinnedFirst(await getPosts());
 const posts = all.filter((p) => p.data.category === category);
 ---
 <Base title={`${label} — Blog`} description={`Articles about ${label}.`}>

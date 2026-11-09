@@ -5,7 +5,7 @@ import BlogCard from '../components/BlogCard.astro';
 import ProjectCard from '../components/ProjectCard.astro';
 import VideoCard from '../components/VideoCard.astro';
 import HeroTrend from '../components/HeroTrend.astro';
-import { categoryLabel, formatDate, getPosts, getProjects, url, youtubeThumb } from '../lib';
+import { categoryLabel, formatDate, getPosts, getProjects, pinnedFirst, url, youtubeThumb } from '../lib';
 import { credentials, site } from '../site';
 
 const projects = await getProjects();
@@ -13,7 +13,7 @@ const posts = await getPosts();
 // Featured projects if any are marked, otherwise the newest. The first gets the big showcase, the next two sit under it.
 const featured = projects.filter((p) => p.data.featured);
 const [hero, ...others] = (featured.length ? featured : projects).slice(0, 3);
-const [lead, ...rest] = posts;
+const [lead, ...rest] = pinnedFirst(posts);
 const morePosts = rest.slice(0, 5);
 const latestVideos = posts.filter((p) => p.data.youtube).slice(0, 3);
 const platforms = [...new Set(projects.flatMap((p) => p.data.platforms))];

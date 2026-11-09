@@ -61,6 +61,9 @@ export async function getPosts(): Promise<Post[]> {
   return all.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 }
 
+/** Pinned posts first (newest first among them), then the rest by date. For lists, not for prev/next or RSS. */
+export const pinnedFirst = (posts: Post[]) => [...posts.filter((p) => p.data.pinned), ...posts.filter((p) => !p.data.pinned)];
+
 /** Frontmatter dates have no time, so format them in UTC to keep the day the author wrote. */
 export const formatDate = (d: Date) =>
   d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });

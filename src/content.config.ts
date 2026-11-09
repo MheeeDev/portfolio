@@ -47,6 +47,8 @@ const posts = defineCollection({
       youtube: z.string().regex(/^[\w-]{11}$/, 'Use the 11-character video ID, e.g. dQw4w9WgXcQ').optional(),
       cover: image().optional(),
       coverAlt: z.string().min(5).optional(),
+      // true = always listed first on the blog and the home page, whatever its date
+      pinned: z.boolean().default(false),
       // true = shown by `npm run dev` only, left out of the built site and the RSS feed
       draft: z.boolean().default(false),
     }),

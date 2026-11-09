@@ -1,9 +1,9 @@
 ---
 import Base from '../../layouts/Base.astro';
 import PostList from '../../components/PostList.astro';
-import { getPosts } from '../../lib';
+import { getPosts, pinnedFirst } from '../../lib';
 
-const posts = await getPosts();
+const posts = pinnedFirst(await getPosts());
 ---
 <Base title="Blog" description="Articles on PLC, SCADA, OT/IT integration and AI tools for automation work — mostly in Thai.">
   <PostList posts={posts} all={posts} />
