@@ -1,0 +1,44 @@
+---
+// Shown by GitHub Pages for any address that does not exist, with a real 404 status.
+// Links are root-absolute (url()), because this page is served at the missing address, not at /404.
+import Base from '../layouts/Base.astro';
+import PageHero from '../components/PageHero.astro';
+import { url } from '../lib';
+
+const links = [
+  { href: url(''), label: 'Home', note: 'หน้าแรก' },
+  { href: url('blog/'), label: 'Blog', note: 'บทความทั้งหมด' },
+  { href: url('projects/'), label: 'Projects', note: 'โปรเจกต์ที่ทำจริง' },
+  { href: url('contact/'), label: 'Contact', note: 'ติดต่อ' },
+];
+---
+<Base title="Page not found" description="This page does not exist or has moved." noindex>
+  <PageHero eyebrow="404 · Not found" title="ไม่พบหน้านี้" titleLang="th" subtitle="หน้านี้อาจถูกย้ายหรือลบไปแล้วครับ ลองเริ่มจากลิงก์ด้านล่างได้เลย — this page has moved or no longer exists." lang="th" center>
+    <p class="code" aria-hidden="true"><span>Status</span> <b>404</b> <span>· Step 0 · no circuit fits this address</span></p>
+  </PageHero>
+
+  <section class="wrap wide body">
+    <div class="cards">
+      {links.map((l, i) => (
+        <a class="card spot" href={l.href} data-reveal style={`--d:${i}`}>
+          <span class="label">{l.label}</span>
+          <span class="note" lang="th">{l.note}</span>
+          <span class="arrow" aria-hidden="true">→</span>
+        </a>
+      ))}
+    </div>
+  </section>
+</Base>
+
+<style>
+  .code { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem; margin: 0; padding: 0.45rem 0.9rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font: 0.82rem var(--mono); color: var(--muted); }
+  .code b { color: #dc2626; }
+  .body { padding-top: 3rem; padding-bottom: 4rem; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 1rem; }
+  .card { position: relative; display: flex; flex-direction: column; gap: 0.3rem; padding: 1.3rem 1.4rem; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); color: var(--text); text-decoration: none; box-shadow: var(--shadow); transition: transform 0.25s, border-color 0.25s; }
+  .card:hover { transform: translateY(-4px); border-color: var(--accent); }
+  .label { font-weight: 700; font-size: 1.1rem; }
+  .note { font-size: 0.85rem; color: var(--muted); }
+  .arrow { position: absolute; top: 1.2rem; right: 1.3rem; color: var(--muted); transition: transform 0.2s, color 0.2s; }
+  .card:hover .arrow { color: var(--accent); transform: translateX(3px); }
+</style>

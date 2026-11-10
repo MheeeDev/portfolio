@@ -15,8 +15,10 @@ interface Props {
   type?: 'website' | 'article';
   /** Extra schema.org data for search engines, e.g. a BlogPosting. */
   jsonLd?: Record<string, unknown>;
+  /** true keeps the page out of search results (the 404 page). */
+  noindex?: boolean;
 }
-const { title, description = site.tagline, lang = 'en', image, type = 'website', jsonLd } = Astro.props;
+const { title, description = site.tagline, lang = 'en', image, type = 'website', jsonLd, noindex = false } = Astro.props;
 const pageTitle = title ? `${title} — ${site.name}` : `${site.name} — ${site.headline}`;
 const path = Astro.url.pathname;
 const canonical = new URL(path, Astro.site);
@@ -50,7 +52,8 @@ const current = (n: (typeof nav)[number]) => (n.exact ? path === n.href : path.s
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{pageTitle}</title>
     <meta name="description" content={description} />
-    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex" />}
+    {!noindex && <link rel="canonical" href={canonical} />}
     <meta property="og:type" content={type} />
     <meta property="og:site_name" content={site.domain} />
     <meta property="og:url" content={canonical} />
