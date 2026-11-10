@@ -1,0 +1,79 @@
+---
+title: Empty-Keg Depalletizer Line — S7-300 to S7-1500, Robot over PROFIBUS
+summary: Moved a brewery's empty-keg robot line from S7-300 to S7-1500, kept six conveyors running as before, set a clear PROFIBUS handshake with the robot and built an HMI to run, troubleshoot and log the line.
+company: P.A.M Engineering & Automation
+period: { start: 2024-05, end: 2024-07 } # TODO: confirm real start/end months
+role: Controls engineer — PLC migration, conveyor logic, PLC ↔ robot interface, HMI screens and the operator manual
+sector: Brewery — empty-keg depalletizing with a vision-guided robot
+platforms: [Siemens S7-1500 (CPU 1515-2 PN), ET200MP, TIA Portal V17, SIMATIC TP1200 Comfort, PROFIBUS DP (CM 1542-5), PROFINET, Industrial robot with vision]
+tags: [PLC, HMI, Robot, Migration, Commissioning]
+cover: ./cover.webp
+coverAlt: Cover — Old line, new handshake. Drawn illustrations of a stainless keg, a yellow robot arm lifting a keg from a pallet onto a conveyor, a modern HMI card, and Siemens and TIA Portal logos.
+highlights:
+  - S7-300 program moved to a CPU 1515-2 PN with ET200MP I/O, line behaviour unchanged
+  - 16 + 16 PROFIBUS bits between PLC and robot, paired by name and shown live on the HMI
+  - Transfer timeouts on every pallet move, 26 alarm texts with cause and remedy
+  - HMI with keg-size programs, robot I/O monitor, motor run hours and a step log
+track: industry
+featured: true
+---
+
+import KegCell from '../../../components/mdx/KegCell.astro';
+
+## Problem
+
+A brewery's empty kegs come back from the market stacked on pallets. On this line a vision-guided robot
+lifts them off, one keg at a time, onto a keg conveyor, and the empty pallets go on to a stacker for the
+forklift. The line still worked, but it ran on an ageing S7-300, and the signals between the PLC and the
+robot were hard to read when something stopped.
+
+## My role & scope
+
+Controls engineer on the integrator's team:
+
+- **PLC migration** — moved the program to a CPU 1515-2 PN with ET200MP I/O, keeping the original
+  function structure and every sequence, wait and interlock
+- **Conveyors** — six motors from pallet infeed to stacker, including the reversing keg conveyor,
+  with light-curtain interlocks and a timer on every pallet transfer
+- **PLC ↔ robot** — 16 bits each way over PROFIBUS DP (CM 1542-5), named in pairs and documented
+- **HMI** — TP1200 Comfort screens for operation, maintenance, alarms and logging
+- **Manual** — a 20-page operator manual in Thai covering every button and every alarm
+
+## Approach
+
+- **I/O table before code.** 64 inputs and 32 outputs named after their device and motor
+  (`PH105_12M1`, `RS STACKER UP`), shared by the wiring team and the program.
+- **Keep the structure the plant knows.** The old program was already split into functions by task;
+  the new robot, alarm and logging parts were added as separate blocks around it.
+- **One owner per bit.** Command bits from the PLC and status bits from the robot share names
+  (CYCLE ON ↔ CYCLE ON, CH PROFIBUS ↔ OK PROFIBUS) so each handshake reads as a pair. A missing echo
+  raises F15.
+- **A clock on every move.** Pallet transfers that take too long raise F031–F043 instead of letting a
+  motor drag a stuck pallet.
+
+<KegCell />
+
+## Delivery
+
+- TIA Portal V17 project, delivered in versions from late June to the end of July 2024
+- HMI: overview with KEG 15/20/30/50 program selection, mode change with confirmation, user login,
+  interlock page, I/O and robot I/O monitors, manual outputs per section, alarms, network diagnostics
+- Setting page with run-hour targets per motor and a **Logging Step** export of the step history
+- Punch list after the site walk-through fixed: forward/reverse motor status on screen and robot alarms
+  shown on the empty-keg conveyor panel
+
+## Result
+
+- The line runs on supported hardware with the same behaviour operators already knew
+- A stop now shows which step, which bit and which alarm, without a laptop
+- Maintenance has motor run hours and a step log to work from
+
+The full story in Thai, with the interactive cell and the handshake table, is in the
+[blog article](/blog/keg-line-robot-profibus-s7-1500/).
+
+## Skills used
+
+- **PLC:** S7-300 to S7-1500 migration, ET200MP, TIA Portal V17, conveyor sequencing, transfer timeouts
+- **Robot interface:** PROFIBUS DP handshake design, communication check bits, error and reset handling
+- **HMI:** TP1200 Comfort, user levels, I/O and robot monitors, alarm texts, run-hour and step logging
+- **Documentation:** I/O tag table, Thai operator manual with cause and remedy for every alarm

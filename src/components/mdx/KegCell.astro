@@ -1,0 +1,307 @@
+---
+// The empty-keg depalletizing cell as a modern HMI: pallet conveyors, the robot, the keg conveyor
+// and the PROFIBUS bits between PLC and robot, stepped through one illustrative cycle.
+// Bit names are the ones on the real robot I/O screen; step numbers, timings and keg counts are illustrative.
+interface Props { title?: string }
+const { title = 'PLC ↔ Robot over PROFIBUS, one pallet at a time' } = Astro.props;
+const plcOut = [
+  [1, 'MOTOR ON STATE'], [2, 'MASTER MAIN'], [3, 'CYCLE ON'], [4, 'RUN CHAIN OK'], [5, 'RESET EXECUTION'],
+  [6, 'RESET EMERGENCY STOP'], [9, 'GO HOME POSITION'], [10, 'CYCLE STOP'], [11, 'PRESSURE VALVE'], [12, 'CH PROFIBUS'],
+];
+const robotOut = [
+  [1, 'MOTOR ON STATE'], [2, 'MASTER MAIN'], [3, 'CYCLE ON'], [4, 'RUN CHAIN OK'], [5, 'EXECUTION ERROR'],
+  [6, 'EMERGENCY STOP'], [7, 'VISION READY'], [9, 'HOME POSITION'], [10, 'CYCLE STOP'], [12, 'OK PROFIBUS'],
+  [13, 'AUTO ON'], [14, 'DOOR VISION'], [15, 'DOOR SAFETY'],
+];
+const recipes = ['KEG 15', 'KEG 20', 'KEG 30', 'KEG 50'];
+const faults = [
+  ['grip', 'F103 Gripper not clamp'],
+  ['bus', 'F15 PROFIBUS not OK'],
+  ['jam', 'F031 Pallet 1→2 over time'],
+];
+---
+<section class="kc" data-tower="g">
+  <div class="bar">
+    <p class="title">{title}</p>
+    <div class="recipes" role="group" aria-label="Program number">
+      {recipes.map((r, i) => <button type="button" data-recipe={i} aria-pressed={i === 2 ? 'true' : 'false'}>{r}</button>)}
+    </div>
+  </div>
+
+  <div class="head">
+    <div class="tower" aria-label="Tower light"><i class="g"></i><i class="y"></i><i class="r"></i></div>
+    <div class="state"><small>STEP</small><b class="step">0</b><span class="stext">Idle, robot at home</span></div>
+    <div class="ctl">
+      <button type="button" class="run">▶ Start</button>
+      <button type="button" class="reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="cell" aria-hidden="true">
+    <div class="lane top">
+      <span class="cv" data-m="15M1"><em>15M1 keg conveyor →</em><span class="kegs out"></span></span>
+    </div>
+    <div class="robot"><span class="arm"></span><span class="grip"></span><small>ROBOT · vision</small></div>
+    <div class="lane bottom">
+      <span class="cv" data-m="11M1"><em>11M1 in</em></span>
+      <span class="cv" data-m="12M1"><em>12M1</em></span>
+      <span class="cv pick" data-m="13M1"><em>13M1 pick</em></span>
+      <span class="cv" data-m="14M1"><em>14M1 → stacker</em></span>
+      <span class="pallet"><span class="kegs on"></span></span>
+    </div>
+  </div>
+
+  <div class="bits">
+    <div><p>PLC → Robot</p><ul class="po">{plcOut.map(([n, t]) => <li data-bit={t}><i>{n}</i>{t}</li>)}</ul></div>
+    <div><p>Robot → PLC</p><ul class="ro">{robotOut.map(([n, t]) => <li data-bit={t}><i>{n}</i>{t}</li>)}</ul></div>
+  </div>
+
+  <div class="lower">
+    <div class="faults" role="group" aria-label="Inject a fault">
+      <span>Inject a fault</span>
+      {faults.map(([k, t]) => <button type="button" data-fault={k}>{t}</button>)}
+    </div>
+    <ol class="log" aria-live="polite"></ol>
+  </div>
+  <p class="note">Bit names from the line's robot I/O screen and alarm codes from its manual. Step numbers, timings and kegs per pallet are illustrative, not the plant's values.</p>
+</section>
+
+<script>
+  type Step = { n: number; text: string; plc: string[]; robot: string[]; run: string[]; at: number; ms: number };
+  const BASE_R = ['MOTOR ON STATE', 'MASTER MAIN', 'AUTO ON', 'OK PROFIBUS'];
+  const BASE_P = ['MOTOR ON STATE', 'MASTER MAIN', 'CH PROFIBUS'];
+  const PER_PALLET = [12, 12, 8, 6]; // illustrative, by keg size
+
+  document.querySelectorAll<HTMLElement>('.kc').forEach((box) => {
+    const q = <T extends Element = HTMLElement>(s: string) => box.querySelector<T>(s)!;
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const pallet = q('.pallet');
+    const onP = q('.kegs.on');
+    const outK = q('.kegs.out');
+    const log = q('.log');
+    const t0 = Date.now();
+    let recipe = 2;
+    let left = 0;
+    let placed = 0;
+    let timer = 0;
+    let running = false;
+    let fault = '';
+    let idx = 0;
+
+    const steps = (): Step[] => [
+      { n: 10, text: 'Pallet in on 11M1 → 12M1', plc: [], robot: ['HOME POSITION', 'DOOR SAFETY', 'DOOR VISION'], run: ['11M1', '12M1'], at: 1, ms: 1200 },
+      { n: 20, text: 'Stopper up, pallet to pick position', plc: [], robot: ['HOME POSITION', 'DOOR SAFETY', 'DOOR VISION'], run: ['12M1', '13M1'], at: 2, ms: 1000 },
+      { n: 30, text: 'Pusher clamps pallet, air on', plc: ['PRESSURE VALVE'], robot: ['HOME POSITION', 'DOOR SAFETY', 'DOOR VISION', 'VISION READY'], run: [], at: 2, ms: 900 },
+      { n: 40, text: 'Cycle on, keg conveyor ready', plc: ['PRESSURE VALVE', 'CYCLE ON', 'RUN CHAIN OK'], robot: ['CYCLE ON', 'RUN CHAIN OK', 'VISION READY', 'DOOR SAFETY', 'DOOR VISION'], run: ['15M1'], at: 2, ms: 700 },
+      { n: 50, text: 'Robot unloads kegs', plc: ['PRESSURE VALVE', 'CYCLE ON', 'RUN CHAIN OK'], robot: ['CYCLE ON', 'RUN CHAIN OK', 'VISION READY', 'DOOR SAFETY', 'DOOR VISION'], run: ['15M1'], at: 2, ms: 380 },
+      { n: 60, text: 'Pallet empty, cycle stop, go home', plc: ['CYCLE STOP', 'GO HOME POSITION'], robot: ['CYCLE STOP', 'HOME POSITION', 'DOOR SAFETY', 'DOOR VISION'], run: ['15M1'], at: 2, ms: 900 },
+      { n: 70, text: 'Unclamp, stopper down, pallet to stacker', plc: [], robot: ['HOME POSITION', 'DOOR SAFETY', 'DOOR VISION'], run: ['13M1', '14M1'], at: 3, ms: 1200 },
+    ];
+
+    function stamp() {
+      const s = Math.floor((Date.now() - t0) / 1000);
+      return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+    }
+    function write(text: string, kind = '') {
+      const li = document.createElement('li');
+      li.className = kind;
+      li.innerHTML = `<time>${stamp()}</time>${text}`;
+      log.prepend(li);
+      while (log.children.length > 6) log.lastElementChild!.remove();
+    }
+    function kegs(el: HTMLElement, n: number) {
+      el.innerHTML = '<i></i>'.repeat(Math.max(0, n));
+    }
+    function show(s: Step | null, opts: { plc?: string[]; robot?: string[]; run?: string[]; text?: string; n?: number } = {}) {
+      const plc = [...BASE_P, ...(opts.plc ?? s?.plc ?? [])];
+      const robot = [...BASE_R, ...(opts.robot ?? s?.robot ?? ['HOME POSITION', 'DOOR SAFETY', 'DOOR VISION'])];
+      if (fault === 'bus') robot.splice(robot.indexOf('OK PROFIBUS'), 1);
+      box.querySelectorAll<HTMLElement>('.po li').forEach((li) => li.classList.toggle('on', plc.includes(li.dataset.bit!)));
+      box.querySelectorAll<HTMLElement>('.ro li').forEach((li) => li.classList.toggle('on', robot.includes(li.dataset.bit!)));
+      box.querySelectorAll<HTMLElement>('.ro').forEach((ul) => ul.classList.toggle('stale', fault === 'bus'));
+      const run = opts.run ?? s?.run ?? [];
+      box.querySelectorAll<HTMLElement>('.cv').forEach((c) => c.classList.toggle('run', run.includes(c.dataset.m!)));
+      q('.step').textContent = String(opts.n ?? s?.n ?? 0);
+      q('.stext').textContent = opts.text ?? s?.text ?? 'Idle, robot at home';
+      if (s) pallet.dataset.at = String(s.at);
+    }
+
+    function stop(code: string, text: string) {
+      running = false;
+      clearTimeout(timer);
+      box.dataset.tower = 'r';
+      box.classList.add('alarm');
+      const cur = steps()[idx];
+      const robot = code === 'F103' ? ['EXECUTION ERROR', 'DOOR SAFETY', 'DOOR VISION'] : undefined;
+      show(cur, { run: [], robot, text: `${code} · ${text}` });
+      write(`<b>${code}</b> ${text}. Line stopped at step ${cur.n}`, 'err');
+      q('.run').textContent = '▶ Start';
+    }
+
+    function tick() {
+      if (!running) return;
+      const list = steps();
+      const s = list[idx];
+      // Faults are checked where the real alarm would fire.
+      if (fault === 'bus') return stop('F15', 'PROFIBUS not OK, no echo from robot');
+      if (fault === 'jam' && s.n === 10) { show(s); return void (timer = window.setTimeout(() => stop('F031', 'Transfer pallet product 1 to 2 over time'), calm ? 300 : 1600)); }
+      if (fault === 'grip' && s.n === 50) return stop('F103', 'Gripper is not clamp');
+      if (s.n === 10 && placed === 0 && left === 0) { left = PER_PALLET[recipe]; kegs(onP, left); }
+      show(s);
+      if (s.n !== 50 || placed === 0) write(`Step ${s.n} · ${s.text}`);
+      if (s.n === 50) {
+        left--; placed++;
+        kegs(onP, left);
+        kegs(outK, Math.min(placed, 6));
+        box.classList.remove('pick');
+        void box.offsetWidth;
+        box.classList.add('pick');
+        if (left > 0) return void (timer = window.setTimeout(tick, calm ? 200 : s.ms));
+        write(`${placed} kegs unloaded`, 'ok');
+      }
+      if (s.n === 70) { placed = 0; left = 0; write('Empty pallet to stacker, next pallet', 'ok'); }
+      idx = (idx + 1) % list.length;
+      timer = window.setTimeout(tick, calm ? 400 : s.ms);
+    }
+
+    function start() {
+      if (box.classList.contains('alarm')) return;
+      running = !running;
+      q('.run').textContent = running ? '❚❚ Pause' : '▶ Start';
+      box.dataset.tower = running ? 'g' : 'y';
+      if (running) tick(); else clearTimeout(timer);
+    }
+
+    function reset() {
+      clearTimeout(timer);
+      running = false;
+      const wasBus = fault === 'bus';
+      fault = '';
+      box.querySelectorAll('[data-fault]').forEach((b) => b.setAttribute('aria-pressed', 'false'));
+      if (box.classList.contains('alarm')) {
+        write(wasBus ? 'Reset, PROFIBUS echo back' : 'Reset execution sent, robot ready', 'ok');
+        show(steps()[idx], { plc: ['RESET EXECUTION'], run: [] });
+      }
+      box.classList.remove('alarm');
+      box.dataset.tower = 'y';
+      q('.run').textContent = '▶ Start';
+    }
+
+    box.querySelector('.run')!.addEventListener('click', start);
+    box.querySelector('.reset')!.addEventListener('click', reset);
+    box.querySelectorAll<HTMLButtonElement>('[data-recipe]').forEach((b) =>
+      b.addEventListener('click', () => {
+        if (running) return write('Program number is locked while the cycle runs', 'warn');
+        box.querySelectorAll('[data-recipe]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+        recipe = Number(b.dataset.recipe);
+        write(`Program number → ${b.textContent}`);
+      }),
+    );
+    box.querySelectorAll<HTMLButtonElement>('[data-fault]').forEach((b) =>
+      b.addEventListener('click', () => {
+        fault = b.dataset.fault!;
+        box.querySelectorAll('[data-fault]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+        write(`Fault armed: ${b.textContent}`, 'warn');
+        if (!running && !box.classList.contains('alarm')) start();
+      }),
+    );
+
+    kegs(onP, PER_PALLET[recipe]);
+    left = PER_PALLET[recipe];
+    pallet.dataset.at = '2';
+    show(null);
+    write('HMI ready, PROFIBUS OK, robot at home', 'ok');
+    // Pause when off screen.
+    new IntersectionObserver(([e]) => { if (!e.isIntersecting && running) start(); }).observe(box);
+  });
+</script>
+
+<style>
+  .kc { margin: 2rem 0; padding: 1.2rem 1.3rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); }
+  .bar { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .title { margin: 0; font-weight: 700; }
+  .recipes, .faults { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  button { border: 1px solid var(--line); background: var(--chip); padding: 0.35rem 0.8rem; border-radius: 999px; font: 600 0.78rem var(--mono); color: var(--muted); cursor: pointer; }
+  button[aria-pressed='true'] { color: var(--ink, inherit); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
+  .faults button[aria-pressed='true'] { border-color: #f59e0b; background: color-mix(in srgb, #f59e0b 14%, var(--surface)); }
+
+  .head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.8rem; align-items: center; padding: 0.6rem 0.8rem; border-radius: 14px; background: #0f172a; color: #e2e8f0; }
+  .tower { display: grid; gap: 4px; }
+  .tower i { width: 0.7rem; height: 0.7rem; border-radius: 50%; background: #334155; }
+  .kc[data-tower='g'] .tower .g { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+  .kc[data-tower='y'] .tower .y { background: #facc15; box-shadow: 0 0 8px #facc15; }
+  .kc[data-tower='r'] .tower .r { background: #ef4444; box-shadow: 0 0 8px #ef4444; animation: blink 0.8s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0.3; } }
+  .state { display: flex; align-items: baseline; gap: 0.6rem; min-width: 0; }
+  .state small { font: 600 0.68rem var(--mono); color: #94a3b8; }
+  .state b { font: 800 1.5rem/1 var(--mono); color: #7dd3fc; min-width: 2.2ch; }
+  .stext { font-size: 0.86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .kc.alarm .stext { color: #fca5a5; font-weight: 700; }
+  .ctl { display: flex; gap: 6px; }
+  .ctl button { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+  .ctl .run { background: #0369a1; border-color: #0284c7; }
+
+  .cell { position: relative; margin: 0.8rem 0; height: 11rem; border-radius: 14px; background: color-mix(in srgb, var(--accent) 4%, var(--chip)); border: 1px solid var(--line); overflow: hidden; }
+  .lane { position: absolute; left: 3%; right: 3%; display: flex; gap: 4px; }
+  .lane.top { top: 1.2rem; left: 52%; }
+  .lane.bottom { bottom: 1.2rem; }
+  .cv { position: relative; flex: 1; height: 1.1rem; border-radius: 5px; background: repeating-linear-gradient(90deg, #94a3b8 0 8px, #cbd5e1 8px 12px); border: 1px solid #94a3b8; }
+  .cv em { position: absolute; left: 0.2rem; top: 1.25rem; font: 600 0.66rem var(--mono); font-style: normal; color: var(--muted); white-space: nowrap; }
+  .cv.run { background: repeating-linear-gradient(90deg, #22c55e 0 8px, #bbf7d0 8px 12px); background-size: 12px 100%; border-color: #16a34a; animation: belt 0.5s linear infinite; }
+  @keyframes belt { to { background-position: 12px 0; } }
+  .cv.pick { outline: 2px dashed color-mix(in srgb, var(--accent) 50%, transparent); outline-offset: 3px; }
+  .pallet { position: absolute; bottom: 1.15rem; width: 21%; height: 0.45rem; border-radius: 2px; background: #475569; transition: left 0.9s ease; left: 0; }
+  .pallet[data-at='1'] { left: 26%; }
+  .pallet[data-at='2'] { left: 51%; }
+  .pallet[data-at='3'] { left: 77%; }
+  .kegs { position: absolute; display: flex; flex-wrap: wrap-reverse; gap: 2px; }
+  .kegs :global(i) { width: 0.85rem; height: 0.95rem; border-radius: 3px 3px 2px 2px; background: linear-gradient(90deg, #8b939d, #f1f5f9 35%, #b6bdc5 70%, #7d858f); box-shadow: inset 0 0.25rem 0 -0.15rem #64748b, inset 0 -0.3rem 0 -0.2rem #64748b; }
+  .kegs.on { left: 2px; right: 2px; bottom: 0.5rem; max-height: 3rem; }
+  .kegs.out { right: 0.4rem; bottom: 1.2rem; flex-direction: row-reverse; }
+  .robot { position: absolute; left: 40%; top: 3.2rem; display: grid; justify-items: center; }
+  .robot small { position: relative; z-index: 1; font: 600 0.62rem var(--mono); color: var(--muted); margin-top: 0.35rem; padding: 0.05rem 0.4rem; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); }
+  .grip { z-index: 0; }
+  .arm { width: 2.6rem; height: 2.6rem; border-radius: 50%; background: radial-gradient(circle, #1f2937 0 30%, #fbbf24 32%); box-shadow: 0 2px 6px rgb(0 0 0 / 0.25); }
+  .grip { position: absolute; top: 1rem; left: 50%; width: 3.2rem; height: 0.35rem; margin-left: 0; border-radius: 3px; background: #f59e0b; transform-origin: 0 50%; transform: rotate(140deg); }
+  .kc.pick .grip { animation: swing 0.38s ease-in-out; }
+  @keyframes swing { 0% { transform: rotate(140deg); } 50% { transform: rotate(-20deg); } 100% { transform: rotate(140deg); } }
+
+  .bits { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  .bits p { margin: 0 0 0.3rem; font: 700 0.75rem var(--mono); color: var(--muted); }
+  .bits ul { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; }
+  .bits li { display: flex; min-width: 0; white-space: nowrap; overflow: hidden; align-items: center; gap: 0.45rem; font: 600 0.7rem var(--mono); color: var(--muted); padding: 0.15rem 0.4rem; border-radius: 6px; }
+  .bits li i { display: inline-grid; place-items: center; width: 1.25rem; height: 1.05rem; border-radius: 4px; font-style: normal; font-size: 0.62rem; background: var(--chip); border: 1px solid var(--line); }
+  .bits li.on { color: var(--ink, inherit); background: color-mix(in srgb, #22c55e 10%, transparent); }
+  .bits li.on i { background: #22c55e; border-color: #16a34a; color: #fff; }
+  .ro li[data-bit='EXECUTION ERROR'].on, .ro li[data-bit='EMERGENCY STOP'].on { background: color-mix(in srgb, #ef4444 12%, transparent); }
+  .ro li[data-bit='EXECUTION ERROR'].on i { background: #ef4444; border-color: #dc2626; }
+  .ro.stale li { opacity: 0.45; text-decoration: line-through; }
+
+  .lower { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 0.8rem; margin-top: 0.9rem; align-items: start; }
+  .faults { flex-direction: column; align-items: stretch; }
+  .faults span { font: 700 0.75rem var(--mono); color: var(--muted); }
+  .faults button { text-align: left; border-radius: 10px; }
+  .log { margin: 0; padding: 0.5rem 0.7rem; list-style: none; min-height: 9.4rem; border-radius: 12px; background: #0f172a; color: #cbd5e1; font: 0.72rem/1.55 var(--mono); }
+  .log :global(li) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .log :global(time) { color: #64748b; margin-right: 0.6rem; }
+  .log :global(.err) { color: #fca5a5; }
+  .log :global(.ok) { color: #86efac; }
+  .log :global(.warn) { color: #fcd34d; }
+  .note { margin: 0.6rem 0 0; font-size: 0.75rem; color: var(--muted); }
+
+  @media (max-width: 620px) {
+    .head { grid-template-columns: auto minmax(0, 1fr); }
+    .ctl { grid-column: span 2; }
+    .ctl button { flex: 1; }
+    .bits, .lower { grid-template-columns: minmax(0, 1fr); }
+    .bits ul { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .bits li { font-size: 0.62rem; gap: 0.3rem; padding: 0.15rem 0.2rem; }
+    .robot { left: 30%; }
+    .lane.top { left: 40%; }
+    .cv em { font-size: 0.58rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cv.run, .kc[data-tower='r'] .tower .r, .kc.pick .grip { animation: none; }
+    .pallet { transition: none; }
+  }
+</style>
