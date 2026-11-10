@@ -1,0 +1,94 @@
+---
+title: Factory Power Meters — Modbus Gateway Replacement & RS-485 Troubleshooting
+summary: Replaced the Modbus gateways behind 46 power meters without touching Ignition, moved the energy database to a new SQL Server, and traced the unstable readings to the RS-485 line itself.
+company: MIAC Automation
+period: { start: 2026-03, end: 2026-07 }
+role: Automation engineer — site survey, gateway set-up and swap, POC, database move, troubleshooting, report and Phase 2 design
+sector: Manufacturing — air-conditioner factory, energy monitoring
+platforms: [Schneider PowerLogic PM5100 / PM710MG, Moxa MGate MB3270, Modbus RTU / RS-485, Modbus TCP, Ignition Perspective, Microsoft SQL Server]
+tags: [Energy, SCADA, Modbus, Troubleshooting, Database migration]
+cover: ./cover.webp
+coverAlt: Cover — New gateway, same old bus. An illustration of a Schneider PowerLogic PM5100 summary screen and the DPM-2 panel, drawn from site photos, with the MDB-3 and MDB-4 meters, with Schneider Electric, Moxa, Ignition and SQL Server logos.
+highlights:
+  - Two Modbus gateways swapped on the same IPs, with no change to the Ignition project
+  - A four-meter POC showed the fault was on the RS-485 line, not in the gateway
+  - Energy database moved to a new SQL Server in two days, remotely, with no data gap
+  - Problem report and a five-day Phase 2 plan to rewire all five distribution boards
+track: industry
+---
+
+import StatStrip from '../../../components/mdx/StatStrip.astro';
+import Rs485Bus from '../../../components/mdx/Rs485Bus.astro';
+
+## Problem
+
+A factory monitored its electricity use in Ignition from dozens of Schneider power meters, read over
+RS-485 Modbus RTU through serial-to-Ethernet gateways. Readings from two distribution boards (MDB-2
+and MDB-4) kept dropping out, and the old gateways were the first suspect. The work had to stay
+invisible to the people using the screens: the existing Ignition licence, no PLC work, and no changes
+to other databases, screens or reports.
+
+<StatStrip items={[
+  { value: '46', label: 'power meters on two RS-485 lines' },
+  { value: '2', label: 'gateways replaced' },
+  { value: '0', label: 'Ignition devices changed' },
+  { value: '2', unit: 'days', label: 'remote database move' },
+]} />
+
+## My role & scope
+
+Automation engineer on the integrator's team:
+
+- **Site survey** — confirmed which gateway served which board by unplugging one LAN cable at a
+  time, and recorded every network and serial setting
+- **Gateway replacement** — configured two Moxa MGate MB3270 units from the old settings, validated
+  them and moved the Modbus wiring across
+- **Proof of concept** — a four-meter test bench to separate gateway faults from line faults
+- **Database move** — backup, restore, permissions and the Ignition database connection, remotely
+- **Reporting** — a problem summary report for the client and the Phase 2 design
+
+## Approach
+
+- **Same IPs, same serial settings.** Ignition addresses each meter as `IP:502:SlaveID`, so a
+  gateway configured with the old IP, baud rate and parity is invisible to the SCADA project.
+- **Verify, don't trust the drawings.** The IP-to-board list was confirmed live, and serial settings
+  were read from the meters' own displays.
+- **Shrink the problem.** When readings stayed unstable after the swap, a four-meter bench on a
+  short, correctly terminated line ran without a single dropout, which pointed at the existing line.
+- **Root cause.** A failed meter at the head of the MDB-4 line was disabled in Ignition but still
+  wired to the bus, where it disturbed the shared pair. SPARE and non-existent meters still had tags,
+  so every polling cycle also waited on timeouts.
+
+<Rs485Bus />
+
+## Delivery
+
+- **Phase 1** — two gateways replaced and validated; DB9-to-terminal adapters sourced on site when
+  the new gateways turned out to have DB9 ports
+- **Database move** — full backup and restore to the new SQL Server for both the application and the
+  historian databases, then the Ignition connection switched; new rows confirmed in SSMS and hourly
+  energy data continuous in Perspective
+- **Phase 1.5** — materials delivered, problem summary report with site video, and an agreed next
+  step to check the disabled meters remotely
+- **Phase 2 design** — new gateways for all five boards, rewired RS-485 through terminals, and a
+  five-day install and recheck plan
+
+## Result
+
+- Gateways replaced with no change to the Ignition project and no break in the energy data
+- The fault located on the RS-485 line instead of in new hardware, so the client spends on rewiring
+  rather than on more gateways
+- Database running on the new server with other projects untouched
+- A clear rule for the plant: a failed meter must be unwired from the bus, not only disabled in SCADA
+
+The full story in Thai, with site photos and an interactive bus model, is in the
+[blog article](/blog/power-meter-modbus-gateway-rs485/).
+
+## Skills used
+
+- **Industrial networks:** Modbus RTU over RS-485 (daisy chain, termination, shielding, slave IDs),
+  Modbus TCP, Moxa MGate configuration and diagnostics
+- **Energy metering:** Schneider PowerLogic PM5100 and PM710MG set-up and register maps
+- **SCADA:** Ignition Gateway device status, Perspective energy views, tag quality
+- **Database:** SQL Server backup and restore, users and permissions, Ignition database connections
+- **Field work:** fault isolation with a minimal test bench, site reports, Phase 2 BOQ and planning

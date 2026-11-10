@@ -1,0 +1,187 @@
+---
+// One RS-485 daisy chain behind a Modbus gateway, polled in a loop.
+// Readers toggle the three things that broke the real line: a dead meter still wired to the bus,
+// missing 120 Ω terminators, and SPARE tags that are polled but never answer.
+// Illustrative model: the odds and timings are picked to show the symptom, not measured values.
+interface Props { title?: string }
+const { title = 'One RS-485 line, polled in a loop' } = Astro.props;
+const meters = Array.from({ length: 8 }, (_, i) => `PM${String(i + 1).padStart(2, '0')}`);
+const spares = ['SPARE', 'BLANK', 'NO EXIST'];
+---
+<section class="bus" data-dead="on" data-term="on" data-spare="on">
+  <div class="bar">
+    <p class="title">{title}</p>
+    <div class="toggles" role="group" aria-label="Line conditions">
+      <button type="button" data-key="dead" aria-pressed="true">Dead meter wired</button>
+      <button type="button" data-key="term" aria-pressed="true">120 Ω terminators</button>
+      <button type="button" data-key="spare" aria-pressed="true">Spare tags polled</button>
+    </div>
+  </div>
+
+  <div class="line" aria-hidden="true">
+    <div class="gw"><span class="led"></span><b>MGate</b><small>Modbus TCP ↔ RTU</small></div>
+    <ol class="nodes">
+      <li class="r">120Ω<small>start</small></li>
+      {meters.map((m, i) => (
+        <li class="node" data-i={i} data-kind={i === 0 ? 'dead' : 'pm'}>
+          <span class="id">{m}</span>
+          <span class="val">—</span>
+          <small class="sid">ID {i + 2}</small>
+        </li>
+      ))}
+      {spares.map((s, i) => (
+        <li class="node" data-kind="spare" data-i={8 + i}>
+          <span class="id">{s}</span>
+          <span class="val">—</span>
+          <small class="sid">tag only</small>
+        </li>
+      ))}
+      <li class="r">120Ω<small>end</small></li>
+    </ol>
+  </div>
+
+  <dl class="read">
+    <div><dt>Poll cycle</dt><dd><span class="cycle">—</span> s</dd></div>
+    <div><dt>Good answers</dt><dd><span class="good">—</span></dd></div>
+    <div><dt>Showing <code>null</code></dt><dd><span class="nul">—</span></dd></div>
+  </dl>
+  <p class="verdict" aria-live="polite"></p>
+  <p class="note">Illustrative model: a good answer takes about 45 ms at 19,200 baud, a timeout waits 1 s. The odds are picked to show the symptom we saw on site, not measured.</p>
+</section>
+
+<script>
+  const GOOD_MS = 45;
+  const TIMEOUT_MS = 1000;
+  document.querySelectorAll<HTMLElement>('.bus').forEach((box) => {
+    const nodes = [...box.querySelectorAll<HTMLElement>('.node')];
+    const base = nodes.map((_, i) => 4 + ((i * 37) % 23) / 2);
+    const cycleEl = box.querySelector('.cycle')!;
+    const goodEl = box.querySelector('.good')!;
+    const nulEl = box.querySelector('.nul')!;
+    const verdict = box.querySelector('.verdict')!;
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let timer = 0;
+    let run = 0;
+
+    const on = (k: string) => box.dataset[k] === 'on';
+
+    function odds(i: number) {
+      let p = 0;
+      if (on('dead')) p += 0.38; // the dead meter drives noise onto the shared pair
+      if (!on('term')) p += i >= 5 ? 0.22 : 0.1; // reflections, worst at the far end
+      return Math.min(p, 0.9);
+    }
+
+    function verdictText(good: number, total: number) {
+      if (on('dead')) return 'Meters further down the line drop in and out, even though their own wiring is fine. That matches what we saw at MDB-4.';
+      if (!on('term')) return 'Better, but the far end still drops answers. Terminate both ends of the pair.';
+      if (on('spare')) return 'Every meter answers, yet each loop still waits 3 s on tags that have no meter behind them.';
+      return good === total ? 'Clean line: every meter answers and one loop takes well under a second.' : 'Almost clean. An odd miss is normal; a pattern is not.';
+    }
+
+    async function cycle() {
+      const id = ++run;
+      let ms = 0;
+      let good = 0;
+      let nul = 0;
+      let total = 0;
+      for (const n of nodes) {
+        const i = Number(n.dataset.i);
+        const kind = n.dataset.kind;
+        const skip = (kind === 'dead' && !on('dead')) || (kind === 'spare' && !on('spare'));
+        n.classList.toggle('off', skip);
+        if (skip) { n.dataset.state = 'off'; n.querySelector('.val')!.textContent = kind === 'dead' ? 'unwired' : 'tag off'; continue; }
+        total++;
+        if (!calm) { n.classList.add('poll'); await new Promise((r) => setTimeout(r, 110)); n.classList.remove('poll'); }
+        if (id !== run) return;
+        const ok = kind === 'pm' && Math.random() > odds(i);
+        ms += ok ? GOOD_MS : TIMEOUT_MS;
+        n.dataset.state = ok ? 'ok' : 'null';
+        n.querySelector('.val')!.textContent = ok ? `${(base[i] + Math.random() * 0.6).toFixed(2)} kW` : 'null';
+        if (ok) good++; else nul++;
+      }
+      const meters = nodes.filter((n) => n.dataset.kind !== 'spare' && !n.classList.contains('off')).length;
+      cycleEl.textContent = (ms / 1000).toFixed(2);
+      goodEl.textContent = `${good} / ${meters}`;
+      nulEl.textContent = String(nul);
+      box.dataset.health = on('dead') || !on('term') ? 'bad' : on('spare') ? 'slow' : 'good';
+      verdict.textContent = verdictText(good, meters);
+      timer = window.setTimeout(cycle, calm ? 1600 : 700);
+    }
+
+    box.querySelectorAll<HTMLButtonElement>('[data-key]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const k = b.dataset.key!;
+        const next = on(k) ? 'off' : 'on';
+        box.dataset[k] = next;
+        b.setAttribute('aria-pressed', String(next === 'on'));
+        clearTimeout(timer);
+        cycle();
+      }),
+    );
+
+    // Only run while on screen.
+    new IntersectionObserver(([e]) => {
+      clearTimeout(timer);
+      run++;
+      if (e.isIntersecting) cycle();
+    }).observe(box);
+  });
+</script>
+
+<style>
+  .bus { margin: 2rem 0; padding: 1.2rem 1.3rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); }
+  .bar { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem 1rem; flex-wrap: wrap; margin-bottom: 1.1rem; }
+  .title { margin: 0; font-weight: 700; }
+  .toggles { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+  .toggles button { border: 1px solid var(--line); background: var(--chip); padding: 0.35rem 0.8rem; border-radius: 999px; font: 600 0.78rem var(--mono); color: var(--muted); cursor: pointer; }
+  .toggles button::before { content: ''; display: inline-block; width: 0.55rem; height: 0.55rem; margin-right: 0.45rem; border-radius: 50%; background: var(--line); vertical-align: 0.02rem; }
+  .toggles button[aria-pressed='true'] { color: var(--ink, inherit); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
+  .toggles button[aria-pressed='true']::before { background: var(--accent); }
+  .toggles button[data-key='dead'][aria-pressed='true']::before { background: #ef4444; }
+
+  .line { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); align-items: start; gap: 0.6rem; }
+  .gw { display: grid; align-content: center; gap: 0.1rem; padding: 0.6rem 0.8rem; border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); border-radius: 14px; background: #0f172a; color: #e2e8f0; font-size: 0.85rem; }
+  .gw small { color: #94a3b8; font: 0.68rem var(--mono); }
+  .gw .led { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 3px rgb(34 197 94 / 0.25); }
+  .r { display: grid; place-content: center; text-align: center; padding: 0.5rem 0.3rem; border-radius: 12px; border: 1px dashed var(--line); font: 700 0.78rem var(--mono); color: var(--muted); }
+  .r small { font-weight: 400; font-size: 0.64rem; }
+  .bus[data-term='on'] .r { border-style: solid; border-color: #22c55e; color: #15803d; background: color-mix(in srgb, #22c55e 10%, var(--surface)); }
+  .nodes { display: grid; grid-template-columns: repeat(auto-fill, minmax(5.4rem, 1fr)); gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
+  /* The shared A/B pair, drawn as a stripe along the top of every tile on the line. */
+  .nodes > li { position: relative; overflow: hidden; }
+  .nodes > li::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: repeating-linear-gradient(90deg, #0284c7 0 10px, #38bdf8 10px 20px); opacity: 0.6; }
+  .bus[data-health='bad'] .nodes > li::before { background: repeating-linear-gradient(90deg, #ef4444 0 6px, #f59e0b 6px 9px, #0284c7 9px 16px); opacity: 0.9; animation: buzz 0.35s steps(2) infinite; }
+  @keyframes buzz { 50% { background-position: 5px 0; } }
+  .node { display: grid; gap: 0.15rem; padding: 0.5rem 0.55rem; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); transition: border-color 0.2s, background 0.2s, opacity 0.2s; }
+  .node .id { font: 700 0.78rem var(--mono); }
+  .node .val { font: 600 0.82rem var(--mono); color: var(--muted); }
+  .node .sid { font: 0.66rem var(--mono); color: var(--muted); }
+  .node[data-state='ok'] { border-color: color-mix(in srgb, #22c55e 55%, var(--line)); }
+  .node[data-state='ok'] .val { color: #15803d; }
+  .node[data-state='null'] { border-color: color-mix(in srgb, #ef4444 55%, var(--line)); background: color-mix(in srgb, #ef4444 7%, var(--surface)); }
+  .node[data-state='null'] .val { color: #dc2626; }
+  .node[data-kind='spare'] { border-style: dashed; }
+  .node[data-kind='dead']:not(.off) .id::after { content: ' ✕'; color: #ef4444; }
+  .node.off { opacity: 0.4; background: var(--chip); border-style: dashed; }
+  .node.poll { box-shadow: inset 0 0 0 2px var(--accent); }
+
+  .read { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; margin: 0.8rem 0 0; }
+  .read div { padding: 0.6rem 0.8rem; border: 1px solid var(--line); border-radius: 12px; }
+  .read dt { font-size: 0.78rem; color: var(--muted); }
+  .read dd { margin: 0.1rem 0 0; font: 800 1.35rem/1.1 var(--font); letter-spacing: -0.03em; }
+  .bus[data-health='bad'] .cycle, .bus[data-health='bad'] .nul { color: #dc2626; }
+  .bus[data-health='slow'] .cycle { color: #d97706; }
+  .bus[data-health='good'] .cycle { color: #15803d; }
+  .verdict { margin: 0.8rem 0 0; font-weight: 600; font-size: 0.92rem; }
+  .note { margin: 0.4rem 0 0; font-size: 0.75rem; color: var(--muted); }
+  @media (max-width: 560px) {
+    .line { grid-template-columns: minmax(0, 1fr); }
+    .gw { grid-template-columns: auto auto 1fr; align-items: center; gap: 0.5rem; }
+    .read { grid-template-columns: 1fr 1fr; }
+    .read div:last-child { grid-column: span 2; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bus[data-health='bad'] .nodes > li::before { animation: none; }
+  }
+</style>
