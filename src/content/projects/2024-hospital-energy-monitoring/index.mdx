@@ -1,0 +1,75 @@
+---
+title: Hospital Energy Monitoring — From CT to Baht with Energy Manager PRO
+summary: Energy monitoring for a large public hospital — CTs into SENTRON PAC5200 meters, data in Siemens Energy Manager PRO, utility-formula TOU/TOD cost by day, month, year or any chosen range, on dashboards designed in-house.
+company: P.A.M Engineering & Automation
+period: { start: 2024-01, end: 2024-12 } # TODO: confirm the start month; the handover dashboard is dated 13 Dec 2024
+role: Project engineer — CT and power-meter set-up, Energy Manager PRO configuration, electricity cost formulas and dashboard design
+sector: Healthcare — public hospital energy management
+platforms: [Siemens Energy Manager PRO, Siemens SENTRON PAC5200, Current transformers (CT), Ethernet / Modbus TCP]
+tags: [Energy, Power Meter, Dashboard, TOU, Data]
+cover: ./cover.webp
+coverAlt: Cover — Every kWh. Every baht. A drawn SENTRON PAC5200 power meter showing 230.19, 231.81 and 232.80 V, two drawn CT rings, and a card of the new energy dashboard with a load profile, KPI rings and a TOU vs TOD bill.
+highlights:
+  - Current from CTs and voltage from the bus measured by PAC5200 meters, not estimated from the bill
+  - Cost worked out with the utility's own formula — TOU peak/off-peak, 15-minute demand, Ft and VAT — and a TOD view beside it
+  - One date-range picker drives every widget, so the facilities team can price any day, month, year or hour range
+  - Dashboards designed in-house and handed over at the panels, so the numbers on screen match the meters on the wall
+track: industry
+---
+
+import EnergyDash from '../../../components/mdx/EnergyDash.astro';
+
+## Problem
+
+A large public hospital runs lighting, air-conditioning and medical equipment around the clock, but
+its facilities team saw only one figure each month: the utility bill for the whole site. Nobody could
+say which building used what, when the load peaked, or what moving work to off-peak hours would save.
+
+## My role & scope
+
+I was the project engineer for the energy-monitoring part:
+
+- **Metering** — CTs on L1, L2 and L3 of each monitored board into Siemens SENTRON PAC5200 meters,
+  with CT ratio, phase and polarity checked against a clamp meter
+- **Data** — meters on the building Ethernet, read by Siemens Energy Manager PRO
+- **Money** — TOU and TOD cost formulas set up to match the utility tariff
+- **Screens** — the hospital dashboard designed in Energy Manager PRO's web client
+
+## Approach
+
+- **Measured, not estimated.** Each PAC5200 combines bus voltage with CT current and works out kW,
+  kVAR, power factor and kWh itself. Energy Manager PRO stores those readings as time series.
+- **Priced like the utility.** Large-service tariff 4.2 (TOU): demand charge on the highest 15-minute
+  average in the peak window, peak and off-peak energy rates, service charge, power-factor charge for
+  kVAR above 61.97% of kW, Ft per kWh and 7% VAT. A TOD view sits beside it from the same data.
+- **One picker for everything.** Real-time row (kWh bars, consumption, 3-phase current) and money row
+  (TOD table, TOU table with *Cost Time of Use*, peak-demand chart) all follow one date-range selector.
+- **Handover at the panel.** I walked the hospital's engineers through each board and matched the
+  meter on the door to the same number on the dashboard, so the team trusts what it sees.
+
+Below is a modern version of that dashboard, rebuilt for this write-up. The load is simulated; the
+tariff, time windows and formula follow the PEA schedule 4 table.
+
+<EnergyDash title="Energy dashboard · main building · December 2024" />
+
+## Delivery
+
+- CTs and PAC5200 meters commissioned on the monitored boards, with phase and polarity checks
+- Energy Manager PRO configured with the meters, TOU and TOD cost formulas and the hospital dashboard
+- Walk-through and handover with the hospital's engineers in mid-December 2024
+
+## Result
+
+- Electricity use and cost visible per building and per period instead of one monthly figure
+- Peak demand shown on a chart, so the costliest 15 minutes of the month can be found and moved
+- A measured baseline for the hospital's energy-saving work and its new rooftop solar plant
+
+The full story in Thai, with the system drawing, the formula table and CT wiring lessons, is in the
+[blog article](/blog/hospital-energy-monitoring-energy-manager-pro/).
+
+## Skills used
+
+- **Metering:** SENTRON PAC5200, CT selection and wiring, phase/polarity checks, CT-ratio set-up
+- **Software:** Siemens Energy Manager PRO, web dashboards, time-series reporting
+- **Energy:** Thai PEA TOU/TOD tariffs, 15-minute demand, power-factor charge, Ft, cost reporting
+- **People:** training and handover with a public client's engineering team

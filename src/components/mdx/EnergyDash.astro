@@ -1,0 +1,437 @@
+---
+// A modern energy dashboard for one hospital building, rebuilt from the panels on the real
+// Energy Manager PRO screen (TOU, TOD, peak demand, 3-phase current, kWh bars). Pick any time
+// range and it works out the cost with PEA's published formula for schedule 4 (large general
+// service): TOU 4.2 and TOD 4.1 — demand charge, energy charge, service charge, power factor
+// charge, Ft and VAT. The load profile is simulated (seeded), not the hospital's data.
+interface Props { title?: string }
+const { title = 'Energy dashboard · อาคารหลัก · ธันวาคม 2024' } = Astro.props;
+const presets = [
+  ['day', '13 ธ.ค. · วันส่งมอบ'],
+  ['week', '9–15 ธ.ค.'],
+  ['month', 'ทั้งเดือน'],
+  ['opd', 'OPD 08:00–16:00'],
+];
+const levels = [
+  ['1', '69 kV ขึ้นไป'],
+  ['2', '22–33 kV'],
+  ['3', 'ต่ำกว่า 22 kV'],
+];
+const rings = [
+  ['lf', 'Load factor', 'ค่าเฉลี่ย ÷ ค่าสูงสุด'],
+  ['pf', 'Power factor', 'kWh ÷ kVAh'],
+  ['op', 'Off-peak share', 'ใช้ไฟช่วงราคาถูก'],
+];
+---
+<section class="ed" aria-label="Energy dashboard ตัวอย่าง">
+  <div class="top">
+    <div class="ttl">
+      <span class="dot" aria-hidden="true"></span>
+      <p class="title">{title}</p>
+      <span class="sim">SIMULATED DATA</span>
+    </div>
+    <div class="live" aria-label="ค่าจาก Power meter ตัวหลัก">
+      <span class="clk">13/12/2024 10:04</span>
+      <span><small>V L1</small><b data-k="v1">230.19</b></span>
+      <span><small>V L2</small><b data-k="v2">231.81</b></span>
+      <span><small>V L3</small><b data-k="v3">232.80</b></span>
+      <span><small>I avg</small><b data-k="ia">0</b><em>A</em></span>
+      <span><small>P</small><b data-k="kw">0</b><em>kW</em></span>
+      <span><small>PF</small><b data-k="pf">0</b></span>
+      <span><small>f</small><b data-k="hz">50.00</b><em>Hz</em></span>
+    </div>
+  </div>
+
+  <div class="ctl">
+    <div class="pre" role="group" aria-label="เลือกช่วงเวลาสำเร็จรูป">
+      {presets.map(([k, l]) => <button type="button" data-pre={k} aria-pressed={k === 'day' ? 'true' : 'false'}>{l}</button>)}
+    </div>
+    <div class="inputs">
+      <label><span>จาก</span><input type="datetime-local" class="from" min="2024-12-01T00:00" max="2024-12-31T23:45" step="900" value="2024-12-13T00:00" /></label>
+      <label><span>ถึง</span><input type="datetime-local" class="to" min="2024-12-01T00:15" max="2025-01-01T00:00" step="900" value="2024-12-14T00:00" /></label>
+      <label><span>แรงดัน</span><select class="lvl">{levels.map(([k, l]) => <option value={k} selected={k === '2'}>{l}</option>)}</select></label>
+      <label><span>Ft</span><input type="number" class="ft" step="0.0001" min="-1" max="2" value="0.3972" /><em>฿/kWh</em></label>
+    </div>
+  </div>
+
+  <div class="tiles">
+    <div class="tile"><small>พลังงานที่ใช้</small><b class="t-kwh">–</b><em>kWh</em><p class="t-split">–</p></div>
+    <div class="tile"><small>Max demand (15 นาที)</small><b class="t-max">–</b><em>kW</em><p class="t-maxat">–</p></div>
+    <div class="tile hi"><small>ค่าไฟช่วงที่เลือก · TOU</small><b class="t-cost">–</b><em>฿</em><p class="t-cost2">–</p></div>
+    <div class="tile"><small>ค่าไฟเฉลี่ย</small><b class="t-avg">–</b><em>฿/kWh</em><p class="t-avg2">รวม Ft และ VAT</p></div>
+  </div>
+
+  <div class="row">
+    <figure class="panel prof">
+      <figcaption><span>Load profile · kW</span><span class="leg"><i class="lp"></i>On-peak window <i class="lm"></i>Max demand</span></figcaption>
+      <div class="plot">
+        <span class="ymax">–</span>
+        <svg class="pchart" viewBox="0 0 600 180" preserveAspectRatio="none" role="img" aria-label="กราฟโหลดไฟฟ้าในช่วงที่เลือก">
+          <g class="shade"></g>
+          <path class="area" d="" />
+          <path class="line" d="" />
+          <line class="mx" x1="0" x2="0" y1="0" y2="180" />
+        </svg>
+      </div>
+      <div class="xl"><span class="x0">–</span><span class="x1">–</span></div>
+    </figure>
+    <div class="panel kpi">
+      <p class="cap">Energy KPI</p>
+      <div class="rings">
+        {rings.map(([k, l, s]) => (
+          <div class="ring" data-r={k}>
+            <svg viewBox="0 0 80 80" aria-hidden="true"><circle class="bg" cx="40" cy="40" r="32" /><circle class="fg" cx="40" cy="40" r="32" pathLength="100" stroke-dasharray="0 100" /></svg>
+            <b>–</b>
+            <p>{l}<small>{s}</small></p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <figure class="panel days">
+      <figcaption><span>kWh รายวัน · คลิกแท่งเพื่อเลือกวัน</span><span class="leg"><i class="bp"></i>Peak <i class="bo"></i>Off-peak</span></figcaption>
+      <div class="bars" role="group" aria-label="พลังงานรายวัน"></div>
+      <div class="xl"><span>1 ธ.ค.</span><span>15</span><span>31</span></div>
+    </figure>
+    <div class="panel bill">
+      <p class="cap">บิลทั้งเดือนตามสูตร กฟภ. · ประเภท 4</p>
+      <table>
+        <thead><tr><th></th><th>TOU <span class="code-tou">4.2.2</span></th><th>TOD <span class="code-tod">4.1.2</span></th></tr></thead>
+        <tbody>
+          <tr><td>ค่าความต้องการพลังไฟฟ้า</td><td data-b="tou-d">–</td><td data-b="tod-d">–</td></tr>
+          <tr><td>ค่าพลังงานไฟฟ้า</td><td data-b="tou-e">–</td><td data-b="tod-e">–</td></tr>
+          <tr><td>ค่าบริการ</td><td data-b="tou-s">–</td><td data-b="tod-s">–</td></tr>
+          <tr><td>ค่า Power factor</td><td data-b="tou-p">–</td><td data-b="tod-p">–</td></tr>
+          <tr><td>ค่า Ft</td><td data-b="tou-f">–</td><td data-b="tod-f">–</td></tr>
+          <tr><td>VAT 7%</td><td data-b="tou-v">–</td><td data-b="tod-v">–</td></tr>
+          <tr class="sum"><td>รวม</td><td data-b="tou-t">–</td><td data-b="tod-t">–</td></tr>
+        </tbody>
+      </table>
+      <p class="why">–</p>
+    </div>
+  </div>
+
+  <p class="note">โหลดในตัวอย่างนี้เป็นข้อมูลจำลอง ไม่ใช่ข้อมูลของโรงพยาบาล ส่วนอัตราค่าไฟ ช่วงเวลา Peak และสูตรคิดเงินเป็นไปตามตารางอัตราค่าไฟฟ้าของ กฟภ. ประเภทกิจการขนาดใหญ่
+  (Peak จันทร์–ศุกร์ 09:00–22:00, วันหยุดราชการ 5, 10 และ 31 ธ.ค. เป็น Off-peak ทั้งวัน) ค่า Ft เปลี่ยนทุกงวด แก้ตัวเลขในช่อง Ft ได้</p>
+</section>
+
+<script>
+  const RATES: Record<string, Record<string, number[]>> = {
+    tou: { '1': [74.14, 4.1025, 2.5849], '2': [132.93, 4.1839, 2.6037], '3': [210.0, 4.3297, 2.6369] },
+    tod: { '1': [224.3, 29.91, 3.1097], '2': [285.05, 58.88, 3.1471], '3': [332.71, 68.22, 3.1751] },
+  };
+  const SERVICE = 312.24;
+  const PF_RATE = 56.07;
+  const VAT = 0.07;
+  const HOL = new Set([5, 10, 31]);
+  const DAYS = 31;
+  const N = DAYS * 96;
+
+  // Seeded load profile for a hospital building: night base, OPD/air-con hump on weekdays,
+  // evening wards, a chiller + lift start on 17 Dec to give the month a clear max demand.
+  function build() {
+    let seed = 20241213;
+    const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+    const sig = (x: number) => 1 / (1 + Math.exp(-x));
+    const kw = new Float64Array(N), kvar = new Float64Array(N);
+    const peak = new Uint8Array(N), tod = new Uint8Array(N);
+    for (let i = 0; i < N; i++) {
+      const d = Math.floor(i / 96) + 1, m = (i % 96) * 15, h = m / 60;
+      const dow = new Date(2024, 11, d).getDay();
+      const off = dow === 0 || dow === 6 || HOL.has(d);
+      const day = sig((h - 8) * 1.6) * sig((17.5 - h) * 1.1);
+      const eve = Math.exp(-((h - 19.5) ** 2) / 2.5);
+      const wob = 1 + 0.05 * Math.sin(d * 0.9) + 0.03 * Math.sin(d * 2.3);
+      let p = (310 + (off ? 150 : 330) * day + 70 * eve) * wob * (0.97 + 0.06 * rnd());
+      if (d === 17 && m >= 13 * 60 + 15 && m < 14 * 60) p += 95;
+      kw[i] = p;
+      const pf = 0.915 + 0.03 * day + 0.01 * (rnd() - 0.5);
+      kvar[i] = p * Math.tan(Math.acos(pf));
+      peak[i] = !off && m >= 540 && m < 1320 ? 1 : 0;
+      tod[i] = m >= 1110 && m < 1290 ? 2 : m >= 480 && m < 1110 ? 1 : 0;
+    }
+    return { kw, kvar, peak, tod };
+  }
+
+  const fmt = (n: number, d = 0) => n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+  const stamp = (i: number) => {
+    const d = Math.floor(i / 96) + 1, m = (i % 96) * 15;
+    return `${d} ธ.ค. ${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+  };
+  const toIdx = (v: string) => {
+    if (!v) return 0;
+    if (v.slice(5, 7) === '01') return N;
+    const d = +v.slice(8, 10), hh = +v.slice(11, 13), mm = +v.slice(14, 16);
+    return Math.max(0, Math.min(N, (d - 1) * 96 + Math.floor((hh * 60 + mm) / 15)));
+  };
+  const toVal = (i: number) => {
+    if (i >= N) return '2025-01-01T00:00';
+    const d = Math.floor(i / 96) + 1, m = (i % 96) * 15;
+    return `2024-12-${String(d).padStart(2, '0')}T${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+  };
+
+  for (const root of document.querySelectorAll<HTMLElement>('.ed')) {
+    const D = build();
+    const q = <T extends Element = HTMLElement>(s: string) => root.querySelector<T>(s)!;
+    const from = q<HTMLInputElement>('.from'), to = q<HTMLInputElement>('.to');
+    const lvl = q<HTMLSelectElement>('.lvl'), ftIn = q<HTMLInputElement>('.ft');
+
+    function stats(a: number, b: number) {
+      let kwh = 0, pk = 0, op = 0, kvarh = 0, max = 0, maxAt = a, maxPk = 0, maxTodPk = 0, maxTodPart = 0, maxKvar = 0;
+      for (let i = a; i < b; i++) {
+        const e = D.kw[i] * 0.25;
+        kwh += e; kvarh += D.kvar[i] * 0.25;
+        if (D.peak[i]) { pk += e; maxPk = Math.max(maxPk, D.kw[i]); } else op += e;
+        if (D.tod[i] === 2) maxTodPk = Math.max(maxTodPk, D.kw[i]);
+        if (D.tod[i] === 1) maxTodPart = Math.max(maxTodPart, D.kw[i]);
+        if (D.kw[i] > max) { max = D.kw[i]; maxAt = i; }
+        maxKvar = Math.max(maxKvar, D.kvar[i]);
+      }
+      return { kwh, pk, op, kvarh, max, maxAt, maxPk, maxTodPk, maxTodPart, maxKvar, n: b - a };
+    }
+
+    // per-day totals, computed once
+    const daily = Array.from({ length: DAYS }, (_, d) => stats(d * 96, d * 96 + 96));
+    const dmax = Math.max(...daily.map((s) => s.kwh));
+    const bars = q('.bars');
+    daily.forEach((s, d) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.title = `${d + 1} ธ.ค. · ${fmt(s.kwh)} kWh`;
+      b.setAttribute('aria-label', b.title);
+      b.innerHTML = `<i class="o" style="height:${(s.op / dmax) * 100}%"></i><i class="p" style="height:${(s.pk / dmax) * 100}%"></i>`;
+      b.addEventListener('click', () => { setRange(d * 96, d * 96 + 96); press(''); });
+      bars.append(b);
+    });
+
+    function press(k: string) {
+      root.querySelectorAll<HTMLButtonElement>('[data-pre]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pre === k)));
+    }
+    function setRange(a: number, b: number) { from.value = toVal(a); to.value = toVal(b); render(); }
+
+    function bill(level: string, ft: number) {
+      const m = stats(0, N);
+      const [dT, onT, offT] = RATES.tou[level];
+      const [dPk, dPart, eTod] = RATES.tod[level];
+      const pfKvar = Math.max(0, Math.round(m.maxKvar - 0.6197 * m.max));
+      const pf = pfKvar * PF_RATE, f = ft * m.kwh;
+      const make = (dem: number, en: number) => {
+        const sub = dem + en + SERVICE + pf + f;
+        return { d: dem, e: en, s: SERVICE, p: pf, f, v: sub * VAT, t: sub * (1 + VAT) };
+      };
+      return {
+        m, pfKvar,
+        tou: make(dT * m.maxPk, onT * m.pk + offT * m.op),
+        tod: make(dPk * m.maxTodPk + dPart * Math.max(0, m.maxTodPart - m.maxTodPk), eTod * m.kwh),
+      };
+    }
+
+    function render() {
+      let a = toIdx(from.value), b = toIdx(to.value);
+      if (b <= a) { b = Math.min(N, a + 4); to.value = toVal(b); }
+      const level = lvl.value;
+      const ft = Number.isFinite(+ftIn.value) ? +ftIn.value : 0;
+      const s = stats(a, b);
+      const [, onT, offT] = RATES.tou[level];
+      const touCost = (onT * s.pk + offT * s.op + ft * s.kwh) * (1 + VAT);
+      const todCost = (RATES.tod[level][2] * s.kwh + ft * s.kwh) * (1 + VAT);
+
+      q('.t-kwh').textContent = fmt(s.kwh);
+      q('.t-split').textContent = `Peak ${fmt(s.pk)} · Off-peak ${fmt(s.op)}`;
+      q('.t-max').textContent = fmt(s.max, 1);
+      q('.t-maxat').textContent = `เกิดที่ ${stamp(s.maxAt)}`;
+      q('.t-cost').textContent = fmt(touCost);
+      q('.t-cost2').textContent = `ถ้าคิดแบบ TOD ${fmt(todCost)} ฿ · ยังไม่รวมค่า Demand`;
+      q('.t-avg').textContent = s.kwh ? fmt(touCost / s.kwh, 2) : '–';
+
+      // load profile
+      const step = s.n > 8 * 96 ? 4 : 1;
+      const pts: [number, number][] = [];
+      for (let i = a; i < b; i += step) {
+        let v = 0, c = 0;
+        for (let j = i; j < Math.min(b, i + step); j++) { v += D.kw[j]; c++; }
+        pts.push([i, v / c]);
+      }
+      const top = Math.ceil((s.max * 1.08) / 100) * 100;
+      const X = (i: number) => ((i - a) / Math.max(1, b - a - 1)) * 600;
+      const Y = (v: number) => 180 - (v / top) * 172;
+      const line = pts.map(([i, v], k) => `${k ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join('');
+      q('.line').setAttribute('d', line);
+      q('.area').setAttribute('d', `${line}L${X(pts[pts.length - 1][0]).toFixed(1)} 180L0 180Z`);
+      let shade = '', st = -1;
+      for (let i = a; i <= b; i++) {
+        const on = i < b && D.peak[i];
+        if (on && st < 0) st = i;
+        if (!on && st >= 0) { shade += `<rect x="${X(st).toFixed(1)}" y="0" width="${Math.max(1, X(i) - X(st)).toFixed(1)}" height="180" />`; st = -1; }
+      }
+      q('.shade').innerHTML = shade;
+      const mx = q('.mx');
+      mx.setAttribute('x1', X(s.maxAt).toFixed(1)); mx.setAttribute('x2', X(s.maxAt).toFixed(1));
+      q('.ymax').textContent = `${fmt(top)} kW`;
+      q('.x0').textContent = stamp(a);
+      q('.x1').textContent = stamp(Math.min(b, N - 1));
+
+      // rings
+      const lf = s.n ? (s.kwh / (s.n * 0.25)) / s.max : 0;
+      const pf = s.kwh / Math.hypot(s.kwh, s.kvarh);
+      const share = s.kwh ? s.op / s.kwh : 0;
+      const ring = (k: string, v: number, txt: string) => {
+        const r = q(`[data-r="${k}"]`);
+        r.querySelector('.fg')!.setAttribute('stroke-dasharray', `${(v * 100).toFixed(1)} 100`);
+        r.querySelector('b')!.textContent = txt;
+      };
+      ring('lf', lf, `${fmt(lf * 100)}%`);
+      ring('pf', pf, pf.toFixed(3));
+      ring('op', share, `${fmt(share * 100)}%`);
+
+      // day bars
+      bars.querySelectorAll('button').forEach((el, d) => el.classList.toggle('in', d * 96 < b && d * 96 + 96 > a));
+
+      // month bill
+      const B = bill(level, ft);
+      q('.code-tou').textContent = `4.2.${level}`;
+      q('.code-tod').textContent = `4.1.${level}`;
+      for (const t of ['tou', 'tod'] as const) {
+        for (const k of ['d', 'e', 's', 'p', 'f', 'v', 't'] as const) {
+          q(`[data-b="${t}-${k}"]`).textContent = fmt(B[t][k]);
+        }
+      }
+      const cheap = B.tou.t <= B.tod.t ? 'TOU' : 'TOD';
+      root.querySelectorAll('.bill tr.sum td').forEach((td, k) => td.classList.toggle('win', (k === 1 && cheap === 'TOU') || (k === 2 && cheap === 'TOD')));
+      q('.why').textContent = `ทั้งเดือนใช้ ${fmt(B.m.kwh)} kWh · Max demand ช่วง Peak ${fmt(B.m.maxPk, 1)} kW · kVAR สูงสุดไม่เกิน 61.97% ของ kW จึงไม่มีค่า Power factor · ${cheap} ถูกกว่า ${fmt(Math.abs(B.tou.t - B.tod.t))} ฿`;
+      if (B.pfKvar > 0) q('.why').textContent = q('.why').textContent!.replace('ไม่เกิน 61.97% ของ kW จึงไม่มีค่า Power factor', `เกิน 61.97% ของ kW ไป ${B.pfKvar} kVAR`);
+    }
+
+    root.querySelectorAll<HTMLButtonElement>('[data-pre]').forEach((btn) =>
+      btn.addEventListener('click', () => {
+        const k = btn.dataset.pre!;
+        press(k);
+        if (k === 'day') setRange(12 * 96, 13 * 96);
+        if (k === 'week') setRange(8 * 96, 15 * 96);
+        if (k === 'month') setRange(0, N);
+        if (k === 'opd') setRange(12 * 96 + 32, 12 * 96 + 64);
+      }),
+    );
+    [from, to].forEach((el) => el.addEventListener('change', () => { press(''); render(); }));
+    lvl.addEventListener('change', render);
+    ftIn.addEventListener('input', render);
+    render();
+
+    // live strip: sim clock starts at the moment on the handover screen and runs 1 min per second
+    let minute = 12 * 1440 + 10 * 60 + 4;
+    let seed = 7;
+    const jit = () => ((seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296 - 0.5);
+    const set = (k: string, v: string) => { q(`[data-k="${k}"]`).textContent = v; };
+    const tick = () => {
+      const i = Math.min(N - 1, Math.floor(minute / 15));
+      const p = D.kw[i] * (1 + 0.012 * jit());
+      const pf = p / Math.hypot(p, D.kvar[i]);
+      const v = [230.19, 231.81, 232.8].map((x) => x + 0.6 * jit());
+      const ia = (p * 1000) / (3 * ((v[0] + v[1] + v[2]) / 3) * pf);
+      set('v1', v[0].toFixed(2)); set('v2', v[1].toFixed(2)); set('v3', v[2].toFixed(2));
+      set('ia', fmt(ia)); set('kw', fmt(p, 1)); set('pf', pf.toFixed(3)); set('hz', (50 + 0.04 * jit()).toFixed(2));
+      const d = Math.floor(minute / 1440) + 1, m = minute % 1440;
+      q('.clk').textContent = `${String(d).padStart(2, '0')}/12/2024 ${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+    };
+    tick();
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      let timer = 0;
+      new IntersectionObserver(([e]) => {
+        clearInterval(timer);
+        if (e.isIntersecting) timer = window.setInterval(() => { minute = (minute + 1) % (DAYS * 1440); tick(); }, 1000);
+      }).observe(root);
+    }
+  }
+</script>
+
+<style>
+  .ed { --ok: #16a34a; --pk: #f59e0b; margin: 2rem 0; padding: 1.1rem 1.2rem 1rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: var(--shadow); }
+  .top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem 1rem; }
+  .ttl { display: flex; align-items: center; gap: 0.55rem; min-width: 0; }
+  .dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 4px color-mix(in srgb, #22c55e 22%, transparent); flex: none; }
+  .title { margin: 0; font-weight: 700; font-size: 0.98rem; }
+  .sim { font: 700 0.6rem var(--mono); letter-spacing: 0.06em; color: var(--muted); border: 1px solid var(--line); padding: 0.1rem 0.45rem; border-radius: 999px; white-space: nowrap; }
+  .live { display: flex; flex-wrap: wrap; gap: 0.25rem 0.85rem; align-items: baseline; padding: 0.45rem 0.8rem; border-radius: 12px; background: #0f172a; color: #e2e8f0; font-family: var(--mono); }
+  .live .clk { font-size: 0.68rem; color: #94a3b8; }
+  .live small { font-size: 0.6rem; color: #94a3b8; margin-right: 0.3rem; }
+  .live b { font-size: 0.82rem; color: #4ade80; font-variant-numeric: tabular-nums; }
+  .live em { font-style: normal; font-size: 0.62rem; color: #94a3b8; margin-left: 0.15rem; }
+
+  .ctl { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.6rem 1rem; margin: 0.9rem 0; }
+  .pre { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .pre button { border: 1px solid var(--line); background: var(--chip); padding: 0.35rem 0.75rem; border-radius: 999px; font: 600 0.76rem var(--font); color: var(--muted); cursor: pointer; }
+  .pre button[aria-pressed='true'] { color: var(--text); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
+  .inputs { display: flex; flex-wrap: wrap; gap: 0.4rem 0.7rem; }
+  .inputs label { display: flex; align-items: center; gap: 0.35rem; font: 600 0.72rem var(--font); color: var(--muted); }
+  .inputs input, .inputs select { font: 500 0.76rem var(--mono); color: var(--text); background: var(--chip); border: 1px solid var(--line); border-radius: 8px; padding: 0.3rem 0.45rem; color-scheme: light dark; }
+  .inputs .ft { width: 5.6rem; }
+  .inputs em { font-style: normal; font-size: 0.68rem; }
+
+  .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.6rem; }
+  .tile { padding: 0.7rem 0.85rem; border: 1px solid var(--line); border-radius: 14px; background: var(--chip); min-width: 0; }
+  .tile small { display: block; font-size: 0.7rem; color: var(--muted); font-weight: 600; }
+  .tile b { font: 800 1.45rem/1.3 var(--mono); font-variant-numeric: tabular-nums; }
+  .tile em { font: 600 0.7rem var(--mono); font-style: normal; color: var(--muted); margin-left: 0.25rem; }
+  .tile p { margin: 0.15rem 0 0; font-size: 0.66rem; line-height: 1.4; color: var(--muted); }
+  .tile.hi { background: color-mix(in srgb, var(--accent) 10%, var(--surface)); border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+  .tile.hi b { color: var(--accent); }
+
+  .row { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 0.6rem; margin-top: 0.6rem; }
+  .panel { margin: 0; padding: 0.75rem 0.85rem; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); min-width: 0; }
+  figcaption, .cap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.3rem; margin: 0 0 0.45rem; font: 700 0.74rem var(--font); }
+  .leg { font: 600 0.64rem var(--mono); color: var(--muted); display: flex; align-items: center; gap: 0.3rem; }
+  .leg i { display: inline-block; width: 0.7rem; height: 0.55rem; border-radius: 2px; margin-left: 0.35rem; }
+  .lp { background: color-mix(in srgb, var(--pk) 25%, transparent); }
+  .lm { background: #ef4444; width: 2px !important; }
+  .bp { background: var(--accent); }
+  .bo { background: color-mix(in srgb, #94a3b8 55%, var(--surface)); }
+
+  .plot { position: relative; }
+  .ymax { position: absolute; top: 2px; left: 6px; font: 600 0.6rem var(--mono); color: var(--muted); }
+  .pchart { display: block; width: 100%; height: 11rem; border-radius: 10px; background: color-mix(in srgb, var(--accent) 4%, var(--chip)); }
+  .shade :global(rect) { fill: color-mix(in srgb, var(--pk) 16%, transparent); }
+  .area { fill: color-mix(in srgb, var(--accent) 16%, transparent); }
+  .line { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+  .mx { stroke: #ef4444; stroke-width: 1.5; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
+  .xl { display: flex; justify-content: space-between; margin-top: 0.3rem; font: 600 0.62rem var(--mono); color: var(--muted); }
+
+  .kpi .rings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.4rem; }
+  .ring { position: relative; text-align: center; }
+  .ring svg { width: 100%; max-width: 6.2rem; transform: rotate(-90deg); }
+  .ring circle { fill: none; stroke-width: 8; }
+  .ring .bg { stroke: var(--chip); }
+  .ring .fg { stroke: var(--accent); stroke-linecap: round; transition: stroke-dasharray 0.5s ease; }
+  .ring[data-r='pf'] .fg { stroke: var(--ok); }
+  .ring[data-r='op'] .fg { stroke: var(--pk); }
+  .ring b { position: absolute; left: 0; right: 0; top: 0; aspect-ratio: 1; max-width: 6.2rem; margin: 0 auto; display: grid; place-items: center; font: 800 0.92rem var(--mono); }
+  .ring p { margin: 0.25rem 0 0; font: 700 0.7rem var(--font); }
+  .ring small { display: block; font-weight: 500; font-size: 0.62rem; color: var(--muted); }
+
+  .days { display: flex; flex-direction: column; }
+  .bars { display: flex; align-items: flex-end; gap: 2px; flex: 1; min-height: 9.5rem; padding: 0.4rem 0.3rem 0; border-radius: 10px; background: color-mix(in srgb, var(--accent) 4%, var(--chip)); }
+  .bars :global(button) { flex: 1 1 0; width: 0; height: 100%; display: flex; flex-direction: column-reverse; justify-content: flex-start; padding: 0; border: 0; background: none; cursor: pointer; opacity: 0.38; transition: opacity 0.2s; min-width: 0; }
+  .bars :global(button.in) { opacity: 1; }
+  .bars :global(button:hover), .bars :global(button:focus-visible) { opacity: 0.85; }
+  .bars :global(i) { display: block; width: 100%; }
+  .bars :global(.o) { background: color-mix(in srgb, #94a3b8 55%, var(--surface)); border-radius: 0 0 2px 2px; }
+  .bars :global(.p) { background: var(--accent); border-radius: 2px 2px 0 0; }
+
+  .bill table { width: 100%; border-collapse: collapse; font-size: 0.72rem; margin: 0; }
+  .bill th { font: 700 0.66rem var(--mono); color: var(--muted); text-align: right; padding: 0.2rem 0.3rem; border-bottom: 1px solid var(--line); }
+  .bill td { padding: 0.24rem 0.3rem; border-bottom: 1px dashed var(--line); font-variant-numeric: tabular-nums; }
+  .bill td:not(:first-child) { text-align: right; font-family: var(--mono); }
+  .bill td:first-child { color: var(--muted); }
+  .bill tr.sum td { border-bottom: 0; font-weight: 800; color: var(--text); padding-top: 0.4rem; }
+  .bill tr.sum td.win { color: var(--ok); }
+  .why { margin: 0.45rem 0 0; font-size: 0.66rem; color: var(--muted); line-height: 1.5; }
+  .note { margin: 0.7rem 0 0; font-size: 0.72rem; color: var(--muted); line-height: 1.6; }
+
+  @media (max-width: 760px) {
+    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .row { grid-template-columns: minmax(0, 1fr); }
+    .ed { padding: 0.9rem 0.8rem; }
+    .live { width: 100%; }
+  }
+</style>
