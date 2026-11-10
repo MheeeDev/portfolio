@@ -1,0 +1,76 @@
+---
+title: Big-Bag Weighing Line — New S7-1500 Program and HMI, Weigh First, Fill Once
+summary: Wrote a new PLC program and designed the HMI for a vegetable-oil plant's big-bag line — buffer hopper, 3-speed weighing to ±0.7%, slide-gate filling, conveyors and pallets, with hardwired and PUT/GET handshakes.
+company: P.A.M Engineering & Automation
+period: { start: 2024-05, end: 2024-08 } # from the kick-off meeting notes and the dated TIA Portal versions
+role: PLC and HMI engineer — sequence design, PLC program written from scratch, HMI design, signal exchange and commissioning support
+sector: Food processing — vegetable-oil plant, meal and hull packed in big bags for animal feed
+platforms: [Siemens S7-1500 (CPU 1511-1 PN), ET 200SP, TIA Portal V17, SIMATIC TP1200 Comfort, PROFINET, S7 PUT/GET, VSD]
+tags: [PLC, HMI, Weighing, Conveyor, Commissioning]
+cover: ./cover.webp
+coverAlt: Cover — Weigh first. Fill once. Drawn illustrations of a stainless buffer hopper, pneumatic valves, a screw feeder, a weigh hopper on load cells, a big bag in a blue filling frame, a roller conveyor and a pallet magazine, with a modern HMI card.
+highlights:
+  - PLC program written from scratch and HMI designed in-house for the whole line, hopper to pallet
+  - Weigh hopper filled at three speeds (FAST, SLOW 1, SLOW 2) to within ±0.7% of set point, then dumped into the bag
+  - Hardwired safety signals plus S7 PUT/GET with the bag-station PLC, with a health bit each way
+  - Alarm list, flowcharts and a 12-step HMI operating guide agreed with the customer before coding
+track: industry
+---
+
+import BagWeigher from '../../../components/mdx/BagWeigher.astro';
+
+## Problem
+
+A vegetable-oil plant packs what is left after oil extraction — meal and hulls — into big bags of
+about 1.35 t each, to be sold as animal feed. The weighing and handling equipment came from a
+specialist vendor, and the plant wanted a control system that was more modern and that its own
+team could follow: one sequence, one operator screen, clear signals to the machines around it.
+
+## My role & scope
+
+I wrote the PLC program from scratch and designed the HMI for the line, on the integrator's team:
+
+- **Sequence** — buffer hopper, feed valves, mini screw, weigh hopper, slide gate, dust collector,
+  conveyors and pallet handling, written as flowcharts first and reviewed by the customer
+- **Weighing** — tare, three feed speeds and a ±0.7% tolerance window against the set point
+- **Signal exchange** — hardwired signals with the plant's cabinet, S7 PUT/GET with the bag-station PLC
+- **HMI** — a one-page process overview on a TP1200 Comfort, plus a 12-step operating guide
+
+## Approach
+
+- **Weigh first, fill once.** Material is weighed in a 3 m³ hopper on load cells, where the reading is
+  steady, then dumped into the bag through a slide gate. When the scale reads zero, the gate closes
+  after 2 s and the station gets *Filling Finish*.
+- **Slow down before the target.** The screw runs FAST to SP1, SLOW 1 to SP2 and SLOW 2 to the set
+  point, so the material still in the air when the valves close stays small.
+- **Every signal has an owner.** Five signals each way with the plant and bag station (Valve Feed
+  Open, Big Bag Ready, Start Filling, Start to Transfer, Pallet Supply Ready ↔ Auto Mode Run, Safety
+  OK, Weigh Finish, Filling Finish, Pallet Empty). Safety-related ones are hardwired; the bag-station
+  data block carries a toggling health bit both ways and raises *Connection Fail* when it stops.
+- **Alarms agreed before code.** Safety/emergency, valve fault (no limit-switch feedback), breaker,
+  VSD, connection fail and tare-not-ready, each acknowledged on the HMI. An open isolator takes its
+  motor out of auto and shows a red *Isolate* state.
+
+<BagWeigher />
+
+## Delivery
+
+- Kick-off meeting in mid-May 2024, then flowcharts and text files for the hull and meal lines
+- TIA Portal V17 versions from late May to mid-August 2024, with an I/O check list against the panels
+- Commissioning plan: a 3–4 day dry test, then a trial with real product
+
+## Result
+
+- One program and one operator screen for the line, from the buffer hopper to the empty pallet
+- Each bag weighed in the hopper and filled in one dump, with set point and actual weight on screen
+- Stops show which signal or device is missing, instead of a line that silently waits
+
+The full story in Thai, with the interactive weigh cycle and the signal table, is in the
+[blog article](/blog/big-bag-weighing-line-s7-1500/).
+
+## Skills used
+
+- **PLC:** S7-1500, ET 200SP, TIA Portal V17, batch weighing sequences, multi-speed dosing, interlocks
+- **Integration:** hardwired handshakes, S7 PUT/GET data blocks, health-bit monitoring
+- **HMI:** TP1200 Comfort process overview, manual valve control, alarms with acknowledge, isolate status
+- **Documentation:** flowcharts, alarm list, I/O check list, operating guide

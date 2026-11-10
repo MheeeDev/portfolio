@@ -1,0 +1,504 @@
+---
+// One weighing line (meal line 2) as a modern HMI: buffer hopper → valves + mini screw → weigh hopper
+// → slide gate → big bag → conveyor, with the hardwired handshake to the bag-station cabinet and the
+// PUT/GET health bits. Sequence and tag names follow the line's flowchart (R3) and operating steps;
+// set-point split, rates, timings and in-flight are illustrative, not plant values.
+interface Props { title?: string }
+const { title = 'Weigh first, then fill · one big bag per cycle' } = Astro.props;
+const sps = [1000, 1200, 1350];
+const fromStation = ['VALVE FEED OPEN', 'BIG BAG READY', 'START FILLING', 'START TO TRANSFER', 'PALLET SUPPLY READY'];
+const toStation = ['AUTO MODE RUN', 'SAFETY OK', 'WEIGH FINISH', 'FILLING FINISH', 'PALLET EMPTY'];
+const faults = [
+  ['iso', 'Isolator opened · screw VSD16'],
+  ['valve', 'FV-31-02 no close feedback'],
+  ['hb', 'Health bit stopped · PUT/GET'],
+];
+---
+<section class="bw" data-tower="y">
+  <div class="bar">
+    <p class="title">{title}</p>
+    <div class="sps" role="group" aria-label="Weight set point">
+      <span>Set point</span>
+      {sps.map((v) => <button type="button" data-sp={v} aria-pressed={v === 1350 ? 'true' : 'false'}>{v.toLocaleString('en-US')} kg</button>)}
+    </div>
+  </div>
+
+  <div class="head">
+    <div class="tower" aria-label="Tower light"><i class="g"></i><i class="y"></i><i class="r"></i></div>
+    <div class="state"><small>STEP</small><b class="step">0</b><span class="stext">Auto · waiting for feed</span></div>
+    <div class="ctl">
+      <button type="button" class="run">▶ Start</button>
+      <button type="button" class="reset">Ack / Reset</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <svg class="plant" viewBox="0 0 340 330" role="img" aria-label="Line schematic: buffer hopper, valves, screw, weigh hopper, slide gate, big bag and conveyor">
+      <defs>
+        <clipPath id="bw-buf"><path d="M70 14H170V60L132 92H108L70 60Z" /></clipPath>
+        <clipPath id="bw-wh"><path d="M160 168H240V196L208 222H192L160 196Z" /></clipPath>
+        <clipPath id="bw-bag"><path d="M168 246Q166 242 172 240H228Q234 242 232 246L236 296Q236 302 228 302H172Q164 302 164 296Z" /></clipPath>
+      </defs>
+      <!-- feed in from the plant (customer's valve) -->
+      <path class="pipe" d="M8 24H86" />
+      <g class="valve" data-v="FV-31-04" transform="translate(40 24)"><circle r="7" /><path d="M-5 0H5" /></g>
+      <text class="lbl" x="28" y="12">FV-31-04</text>
+      <!-- buffer hopper -->
+      <g clip-path="url(#bw-buf)"><rect class="mat buf" x="60" y="92" width="120" height="0" /></g>
+      <path class="vessel" d="M70 14H170V60L132 92H108L70 60Z" />
+      <text class="lbl c" x="120" y="44">HOPPER 7 m³</text>
+      <g class="lv" data-lv="HHSL"><circle cx="180" cy="20" r="4" /><text x="188" y="23">HHSL</text></g>
+      <g class="lv" data-lv="HSL"><circle cx="180" cy="32" r="4" /><text x="188" y="35">HSL</text></g>
+      <g class="lv" data-lv="LSL"><circle cx="180" cy="70" r="4" /><text x="188" y="73">LSL</text></g>
+      <g class="jet" transform="translate(150 6)"><rect x="-8" y="-4" width="16" height="8" rx="2" /><text class="lbl" x="12" y="2">XV-31-01</text></g>
+      <!-- valves + mini screw -->
+      <path class="pipe" d="M120 92V140" />
+      <g class="valve" data-v="FV-31-02" transform="translate(120 106)"><circle r="7" /><path d="M-5 0H5" /></g>
+      <g class="valve" data-v="FV-31-01" transform="translate(120 126)"><circle r="7" /><path d="M-5 0H5" /></g>
+      <text class="lbl e" x="108" y="109">FV-31-02</text>
+      <text class="lbl e" x="108" y="129">FV-31-01</text>
+      <rect class="screw" x="112" y="140" width="98" height="14" rx="4" />
+      <rect class="motor" x="210" y="138" width="18" height="18" rx="3" />
+      <text class="lbl spd" x="236" y="151">OFF</text>
+      <path class="pipe" d="M200 154V168" />
+      <!-- weigh hopper on load cells -->
+      <g clip-path="url(#bw-wh)"><rect class="mat wh" x="150" y="222" width="100" height="0" /></g>
+      <path class="vessel" d="M160 168H240V196L208 222H192L160 196Z" />
+      <path class="cell" d="M152 196l8 -6v12zM248 196l-8 -6v12z" />
+      <rect class="disp" x="250" y="172" width="84" height="30" rx="6" />
+      <text class="kg" x="327" y="193">0.0</text>
+      <text class="lbl c" x="200" y="186">WEIGH</text>
+      <!-- slide gate -->
+      <rect class="gate" data-v="FV-31-03" x="184" y="224" width="32" height="8" rx="2" />
+      <text class="lbl" x="222" y="232">FV-31-03</text>
+      <path class="pipe" d="M200 232V240" />
+      <!-- dust collector -->
+      <g class="dust"><rect x="22" y="188" width="44" height="58" rx="6" /><path d="M22 246L38 266H50L66 246" /><text class="lbl c" x="44" y="212">DUST</text><text class="lbl c" x="44" y="224">XM07/08</text></g>
+      <path class="hose" d="M66 214C110 214 130 240 168 244" />
+      <!-- big bag on pallet -->
+      <path class="loops" d="M174 240V232M226 240V232" />
+      <g clip-path="url(#bw-bag)"><rect class="mat bag" x="160" y="302" width="80" height="0" /></g>
+      <path class="bagline" d="M168 246Q166 242 172 240H228Q234 242 232 246L236 296Q236 302 228 302H172Q164 302 164 296Z" />
+      <g class="pallet"><rect x="160" y="302" width="80" height="6" rx="1" /></g>
+      <!-- conveyor -->
+      <g class="cv" data-m="VSD05"><rect x="10" y="310" width="100" height="10" rx="3" /><text class="lbl" x="12" y="330">VSD05</text></g>
+      <g class="cv" data-m="VSD06"><rect x="116" y="310" width="110" height="10" rx="3" /><text class="lbl" x="118" y="330">VSD06</text></g>
+      <g class="cv" data-m="VSD07"><rect x="232" y="310" width="100" height="10" rx="3" /><text class="lbl" x="234" y="330">VSD07 → out</text></g>
+    </svg>
+
+    <div class="trend">
+      <div class="read">
+        <div><small>Weight actual</small><b class="wa">0.0</b><em>kg</em></div>
+        <div><small>Set point</small><b class="wsp">1,350</b><em>kg</em></div>
+        <div><small>Bags</small><b class="bags">0</b></div>
+      </div>
+      <svg class="chart" viewBox="0 0 300 150" preserveAspectRatio="none" aria-hidden="true">
+        <rect class="band" x="0" y="0" width="300" height="0" />
+        <line class="sp1" x1="0" x2="300" y1="0" y2="0" />
+        <line class="sp2" x1="0" x2="300" y1="0" y2="0" />
+        <line class="spl" x1="0" x2="300" y1="0" y2="0" />
+        <polyline class="trace" points="" />
+      </svg>
+      <ul class="legend">
+        <li><i class="k1"></i>SP1 · FAST → SLOW 1</li>
+        <li><i class="k2"></i>SP2 · SLOW 1 → SLOW 2</li>
+        <li><i class="k3"></i>SP ±0.7%</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="bits">
+    <div><p>Bag station → PLC <span class="hb in" title="Health bit">PUT/GET ♥</span></p><ul class="fi">{fromStation.map((t, i) => <li data-bit={t}><i>{i + 1}</i>{t}</li>)}</ul></div>
+    <div><p>PLC → Bag station <span class="hb out" title="Health bit">PUT/GET ♥</span></p><ul class="fo">{toStation.map((t, i) => <li data-bit={t}><i>{i + 1}</i>{t}</li>)}</ul></div>
+  </div>
+
+  <div class="lower">
+    <div class="faults" role="group" aria-label="Inject a fault">
+      <span>Inject a fault</span>
+      {faults.map(([k, t]) => <button type="button" data-fault={k}>{t}</button>)}
+    </div>
+    <ol class="log" aria-live="polite"></ol>
+  </div>
+  <p class="note">Sequence, tag and signal names from the line's flowchart and operating steps. The SP1/SP2 split, feed rates, in-flight and timings are illustrative, not the plant's values.</p>
+</section>
+
+<script>
+  type Ctx = { sp: number; w: number; buf: number; bag: number; bags: number };
+  const TOL = 0.007;
+
+  document.querySelectorAll<HTMLElement>('.bw').forEach((box) => {
+    const q = <T extends Element = HTMLElement>(s: string) => box.querySelector<T>(s)!;
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const log = q('.log');
+    const trace = q<SVGPolylineElement>('.trace');
+    const t0 = Date.now();
+    const c: Ctx = { sp: 1350, w: 0, buf: 0.35, bag: 0, bags: 0 };
+    let pts: string[] = [];
+    let tx = 0;
+    let step = 0;
+    let running = false;
+    let fault = '';
+    let timer = 0;
+    let hbTimer = 0;
+    let hbAlive = true;
+
+    const Y = (kg: number) => 145 - (kg / (c.sp * 1.12)) * 140;
+    function axes() {
+      const set = (s: string, kg: number) => { const l = q<SVGLineElement>(s); l.setAttribute('y1', String(Y(kg))); l.setAttribute('y2', String(Y(kg))); };
+      set('.sp1', c.sp * 0.9);
+      set('.sp2', c.sp * 0.97);
+      set('.spl', c.sp);
+      const band = q<SVGRectElement>('.band');
+      band.setAttribute('y', String(Y(c.sp * (1 + TOL))));
+      band.setAttribute('height', String(Y(c.sp * (1 - TOL)) - Y(c.sp * (1 + TOL))));
+      q('.wsp').textContent = c.sp.toLocaleString('en-US');
+    }
+    function stamp() {
+      const s = Math.floor((Date.now() - t0) / 1000);
+      return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+    }
+    function write(text: string, kind = '') {
+      const li = document.createElement('li');
+      li.className = kind;
+      li.innerHTML = `<time>${stamp()}</time>${text}`;
+      log.prepend(li);
+      while (log.children.length > 6) log.lastElementChild!.remove();
+    }
+    function level(sel: string, frac: number, top: number, bottom: number) {
+      const r = q<SVGRectElement>(sel);
+      const h = Math.max(0, Math.min(1, frac)) * (bottom - top);
+      r.setAttribute('y', String(bottom - h));
+      r.setAttribute('height', String(h));
+    }
+    function plot() {
+      pts.push(`${tx.toFixed(1)},${Y(c.w).toFixed(1)}`);
+      tx += 1.5;
+      if (tx > 300) { pts = pts.slice(-1).map((p) => `0,${p.split(',')[1]}`); tx = 1.5; }
+      trace.setAttribute('points', pts.join(' '));
+    }
+    function draw() {
+      level('.mat.buf', c.buf, 14, 92);
+      level('.mat.wh', c.w / (c.sp * 1.05), 168, 222);
+      level('.mat.bag', c.bag, 240, 302);
+      q('.wa').textContent = c.w.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+      q('.kg').textContent = c.w.toFixed(1);
+      q('.bags').textContent = String(c.bags);
+      const lv = { HHSL: c.buf > 0.97, HSL: c.buf >= 0.85, LSL: c.buf > 0.15 };
+      box.querySelectorAll<SVGGElement>('.lv').forEach((g) => g.classList.toggle('on', lv[g.dataset.lv as keyof typeof lv]));
+    }
+    function io(o: { open?: string[]; spd?: string; dust?: boolean; jet?: boolean; run?: string[]; fi?: string[]; fo?: string[] }) {
+      const open = o.open ?? [];
+      box.querySelectorAll<SVGElement>('[data-v]').forEach((v) => v.classList.toggle('open', open.includes(v.dataset.v!)));
+      const spd = q('.spd');
+      spd.textContent = o.spd ?? 'OFF';
+      box.classList.toggle('screwing', !!o.spd && o.spd !== 'ISOLATE');
+      box.classList.toggle('iso', o.spd === 'ISOLATE');
+      box.classList.toggle('dusting', !!o.dust);
+      box.classList.toggle('jetting', !!o.jet);
+      box.querySelectorAll<SVGGElement>('.cv').forEach((g) => g.classList.toggle('run', (o.run ?? []).includes(g.dataset.m!)));
+      const fi = o.fi ?? [];
+      const fo = [...(running ? ['AUTO MODE RUN'] : []), 'SAFETY OK', ...(o.fo ?? [])];
+      box.querySelectorAll<HTMLElement>('.fi li').forEach((li) => li.classList.toggle('on', fi.includes(li.dataset.bit!)));
+      box.querySelectorAll<HTMLElement>('.fo li').forEach((li) => li.classList.toggle('on', fo.includes(li.dataset.bit!)));
+    }
+    function say(n: number, text: string, kind = '') {
+      step = n;
+      q('.step').textContent = String(n);
+      q('.stext').textContent = text;
+      write(`Step ${n} · ${text}`, kind);
+    }
+    const later = (fn: () => void, ms: number) => { timer = window.setTimeout(() => running && fn(), calm ? Math.min(ms, 250) : ms); };
+
+    function alarm(code: string, text: string) {
+      running = false;
+      clearTimeout(timer);
+      box.dataset.tower = 'r';
+      box.classList.add('alarm');
+      q('.stext').textContent = `${code} · ${text}`;
+      write(`<b>${code}</b> ${text}. Auto stopped at step ${step}`, 'err');
+      q('.run').textContent = '▶ Start';
+      // Every output drops to a safe state; an isolated motor keeps its red ISOLATE status.
+      io({ spd: code === 'ISOLATE' ? 'ISOLATE' : undefined });
+    }
+
+    // Sequence after the flowchart: feed → tare → FAST/SLOW1/SLOW2 → weigh finish → handshake → discharge → transfer.
+    function feed() {
+      say(10, 'Wait VALVE FEED OPEN · FV-31-04 from plant');
+      io({ fi: [] });
+      later(() => {
+        io({ open: ['FV-31-04'], fi: ['VALVE FEED OPEN'] });
+        const fill = () => {
+          c.buf = Math.min(0.88, c.buf + 0.04); draw();
+          if (c.buf < 0.88) return later(fill, 90);
+          say(15, 'HSL on · FV-31-04 closed · pulse jet XV-31-01 ×3');
+          io({ jet: true });
+          later(tare, 1300);
+        };
+        fill();
+      }, 700);
+    }
+    function tare() {
+      io({});
+      if (fault === 'valve') { say(20, 'Check FV-31-01/02 closed · SP > 0'); return later(() => alarm('VALVE FAULT', 'FV-31-02 no close feedback (ZSC)'), 700); }
+      c.w = 0; draw(); plot();
+      say(20, `Tare weigh hopper = 0 · SP ${c.sp.toLocaleString('en-US')} kg`);
+      later(() => { say(30, 'FV-31-01 + FV-31-02 open · screw FAST'); dose(); }, 700);
+    }
+    function dose() {
+      const sp1 = c.sp * 0.9, sp2 = c.sp * 0.97;
+      if (fault === 'iso') return alarm('ISOLATE', 'Isolator MSS opened on screw VSD16 · motor out of auto');
+      let spd = 'FAST', rate = c.sp * 0.045, open = ['FV-31-01', 'FV-31-02'];
+      if (c.w >= sp1) { spd = 'SLOW 1'; rate = c.sp * 0.0075; open = ['FV-31-01']; }
+      if (c.w >= sp2) { spd = 'SLOW 2'; rate = c.sp * 0.0022; }
+      if (spd === 'SLOW 1' && step === 30) say(40, '≥ SP1 · FV-31-02 closed · screw SLOW 1');
+      if (spd === 'SLOW 2' && step === 40) say(50, '≥ SP2 · screw SLOW 2');
+      io({ open, spd });
+      c.w += rate * (0.85 + Math.random() * 0.3);
+      c.buf = Math.max(0.2, c.buf - rate / c.sp * 0.5);
+      draw(); plot();
+      // Cut-off just before SP; the material still in the air lands after the valves close.
+      if (c.w < c.sp - c.sp * 0.0022 * 1.4) return later(dose, 80);
+      io({});
+      const inflight = c.sp * (0.001 + Math.random() * 0.003);
+      later(() => {
+        c.w += inflight; draw(); plot();
+        const err = (c.w - c.sp) / c.sp;
+        const ok = Math.abs(err) <= TOL;
+        say(60, `Weight ${c.w.toFixed(1)} kg (${err >= 0 ? '+' : ''}${(err * 100).toFixed(2)}%) · ${ok ? 'in ±0.7%' : 'out of tolerance'} · WEIGH FINISH`, ok ? 'ok' : 'warn');
+        io({ fo: ['WEIGH FINISH'] });
+        later(handshake, 900);
+      }, 300);
+    }
+    function handshake() {
+      say(70, 'Wait BIG BAG READY + START FILLING');
+      if (fault === 'hb') return;
+      later(() => {
+        io({ fi: ['BIG BAG READY'], fo: ['WEIGH FINISH'] });
+        later(() => {
+          io({ fi: ['BIG BAG READY', 'START FILLING'], fo: ['WEIGH FINISH'] });
+          later(discharge, 500);
+        }, 600);
+      }, 600);
+    }
+    function discharge() {
+      say(80, 'FV-31-03 open · dust collector XM07/XM08 on');
+      const start = c.w;
+      const pour = () => {
+        io({ open: ['FV-31-03'], dust: true, fi: ['BIG BAG READY', 'START FILLING'], fo: ['WEIGH FINISH'] });
+        c.w = Math.max(0, c.w - start * 0.07);
+        c.bag = 1 - c.w / start;
+        draw(); plot();
+        if (c.w > 0) return later(pour, 80);
+        say(90, 'Weight = 0 · after 2 s FV-31-03 closed · FILLING FINISH');
+        later(() => { io({ fo: ['FILLING FINISH'] }); later(transfer, 700); }, 1000);
+      };
+      pour();
+    }
+    function transfer() {
+      const start = c.sp;
+      say(100, 'START TO TRANSFER · conveyor VSD05 → VSD07');
+      io({ fi: ['START TO TRANSFER'], fo: ['FILLING FINISH'], run: ['VSD05', 'VSD06', 'VSD07'] });
+      box.classList.add('moving');
+      later(() => {
+        box.classList.remove('moving');
+        c.bag = 0; c.bags++; draw();
+        say(110, 'PALLET SUPPLY READY + PALLET EMPTY · XM05/XM06 run');
+        io({ fi: ['PALLET SUPPLY READY'], fo: ['PALLET EMPTY'], run: ['VSD05'] });
+        write(`Bag ${c.bags} out · ${start.toLocaleString('en-US')} kg set point`, 'ok');
+        later(feed, 1100);
+      }, 1500);
+    }
+
+    function heartbeat() {
+      clearInterval(hbTimer);
+      let missed = 0;
+      hbTimer = window.setInterval(() => {
+        box.querySelector('.hb.out')!.classList.toggle('beat');
+        if (fault !== 'hb') { box.querySelector('.hb.in')!.classList.toggle('beat'); missed = 0; return; }
+        box.querySelector('.hb.in')!.classList.add('dead');
+        if (!running) return;
+        if (++missed >= 3) alarm('CONNECTION FAIL', 'Health bit from bag station not toggling (PUT/GET)');
+      }, 500);
+    }
+
+    function start() {
+      if (box.classList.contains('alarm')) return write('Acknowledge the alarm first', 'warn');
+      running = !running;
+      q('.run').textContent = running ? '❚❚ Pause' : '▶ Start';
+      box.dataset.tower = running ? 'g' : 'y';
+      if (!running) { clearTimeout(timer); return write('Paused'); }
+      write('Start · Auto mode run', 'ok');
+      io({});
+      feed();
+    }
+    function reset() {
+      clearTimeout(timer);
+      running = false;
+      const was = box.classList.contains('alarm');
+      fault = '';
+      box.querySelector('.hb.in')!.classList.remove('dead');
+      box.querySelectorAll('[data-fault]').forEach((b) => b.setAttribute('aria-pressed', 'false'));
+      box.classList.remove('alarm', 'moving');
+      box.dataset.tower = 'y';
+      q('.run').textContent = '▶ Start';
+      if (was) write('Alarm acknowledged on HMI · reset', 'ok');
+      // Material left in the weigh hopper stays there; the next Start re-checks valves and tares.
+      io({});
+      q('.step').textContent = '0';
+      q('.stext').textContent = 'Auto · waiting for feed';
+      step = 0;
+    }
+
+    box.querySelector('.run')!.addEventListener('click', start);
+    box.querySelector('.reset')!.addEventListener('click', reset);
+    box.querySelectorAll<HTMLButtonElement>('[data-sp]').forEach((b) =>
+      b.addEventListener('click', () => {
+        if (running) return write('Set point is locked while a batch runs', 'warn');
+        box.querySelectorAll('[data-sp]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+        c.sp = Number(b.dataset.sp);
+        pts = []; tx = 0; trace.setAttribute('points', '');
+        axes(); draw();
+        write(`Set point → ${b.textContent}`);
+      }),
+    );
+    box.querySelectorAll<HTMLButtonElement>('[data-fault]').forEach((b) =>
+      b.addEventListener('click', () => {
+        fault = b.dataset.fault!;
+        box.querySelectorAll('[data-fault]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+        write(`Fault armed: ${b.textContent}`, 'warn');
+        if (!running && !box.classList.contains('alarm')) start();
+      }),
+    );
+
+    axes();
+    draw();
+    io({});
+    heartbeat();
+    write('HMI ready · Safety OK · PUT/GET health bits OK', 'ok');
+    new IntersectionObserver(([e]) => { if (!e.isIntersecting && running) start(); }).observe(box);
+  });
+</script>
+
+<style>
+  .bw { margin: 2rem 0; padding: 1.2rem 1.3rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); }
+  .bar { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .title { margin: 0; font-weight: 700; }
+  .sps, .faults { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .sps span, .faults span { font: 700 0.75rem var(--mono); color: var(--muted); }
+  button { border: 1px solid var(--line); background: var(--chip); padding: 0.35rem 0.8rem; border-radius: 999px; font: 600 0.78rem var(--mono); color: var(--muted); cursor: pointer; }
+  button[aria-pressed='true'] { color: var(--ink, inherit); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
+  .faults button[aria-pressed='true'] { border-color: #f59e0b; background: color-mix(in srgb, #f59e0b 14%, var(--surface)); }
+
+  .head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.8rem; align-items: center; padding: 0.6rem 0.8rem; border-radius: 14px; background: #0f172a; color: #e2e8f0; }
+  .tower { display: grid; gap: 4px; }
+  .tower i { width: 0.7rem; height: 0.7rem; border-radius: 50%; background: #334155; }
+  .bw[data-tower='g'] .tower .g { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+  .bw[data-tower='y'] .tower .y { background: #facc15; box-shadow: 0 0 8px #facc15; }
+  .bw[data-tower='r'] .tower .r { background: #ef4444; box-shadow: 0 0 8px #ef4444; animation: blink 0.8s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0.3; } }
+  .state { display: flex; align-items: baseline; gap: 0.6rem; min-width: 0; }
+  .state small { font: 600 0.68rem var(--mono); color: #94a3b8; }
+  .state b { font: 800 1.5rem/1 var(--mono); color: #7dd3fc; min-width: 2.6ch; }
+  .stext { font-size: 0.86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bw.alarm .stext { color: #fca5a5; font-weight: 700; }
+  .ctl { display: flex; gap: 6px; }
+  .ctl button { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+  .ctl .run { background: #0369a1; border-color: #0284c7; }
+
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.8rem; margin: 0.8rem 0; }
+  .plant, .trend { border-radius: 14px; background: color-mix(in srgb, var(--accent) 4%, var(--chip)); border: 1px solid var(--line); }
+  .plant { width: 100%; height: auto; display: block; padding: 0.3rem; }
+  .plant text { font: 600 9px var(--mono); fill: var(--muted); }
+  .plant .lbl.c { text-anchor: middle; }
+  .plant .lbl.e { text-anchor: end; }
+  .vessel { fill: color-mix(in srgb, var(--surface) 55%, transparent); stroke: #94a3b8; stroke-width: 2; }
+  .pipe { fill: none; stroke: #94a3b8; stroke-width: 5; stroke-linecap: round; }
+  .mat { fill: #c8a165; }
+  .mat.bag { fill: #d6b47c; }
+  .valve circle { fill: var(--surface); stroke: #64748b; stroke-width: 2; }
+  .valve path { stroke: #64748b; stroke-width: 2.5; stroke-linecap: round; transition: transform 0.2s; }
+  .valve.open circle { fill: #dcfce7; stroke: #16a34a; }
+  .valve.open path { stroke: #16a34a; transform: rotate(90deg); }
+  .gate { fill: color-mix(in srgb, #94a3b8 40%, var(--surface)); stroke: #64748b; stroke-width: 1.5; }
+  .gate.open { fill: #22c55e; stroke: #16a34a; }
+  .lv circle { fill: #cbd5e1; stroke: #94a3b8; }
+  .lv.on circle { fill: #22c55e; stroke: #16a34a; }
+  .lv[data-lv='HHSL'].on circle { fill: #ef4444; stroke: #dc2626; }
+  .jet rect { fill: #cbd5e1; stroke: #64748b; }
+  .bw.jetting .jet rect { fill: #38bdf8; stroke: #0284c7; animation: blink 0.4s steps(2) 6; }
+  .screw { fill: color-mix(in srgb, #94a3b8 40%, var(--surface)); stroke: #64748b; stroke-width: 1.5; }
+  .bw.screwing .screw { fill: #bbf7d0; stroke: #16a34a; stroke-dasharray: 6 4; animation: belt 0.4s linear infinite; }
+  .bw.iso .screw, .bw.iso .motor { fill: #fecaca; stroke: #dc2626; }
+  .motor { fill: #94a3b8; stroke: #64748b; }
+  .bw.screwing .motor { fill: #22c55e; stroke: #16a34a; }
+  .plant .spd { font-weight: 800; fill: var(--muted); }
+  .bw.screwing .plant .spd { fill: #16a34a; }
+  .bw.iso .plant .spd { fill: #dc2626; }
+  .cell { fill: #64748b; }
+  .disp { fill: #0f172a; }
+  .plant .kg { font: 700 15px var(--mono); fill: #4ade80; text-anchor: end; }
+  .dust rect, .dust path { fill: var(--surface); stroke: #94a3b8; stroke-width: 2; }
+  .bw.dusting .dust rect, .bw.dusting .dust path { stroke: #0284c7; fill: color-mix(in srgb, #38bdf8 14%, var(--surface)); }
+  .hose { fill: none; stroke: #94a3b8; stroke-width: 4; stroke-dasharray: 3 3; }
+  .bw.dusting .hose { stroke: #0284c7; animation: belt 0.5s linear infinite reverse; }
+  .loops { stroke: #94a3b8; stroke-width: 3; }
+  .bagline { fill: none; stroke: #94a3b8; stroke-width: 2; }
+  .pallet rect { fill: #a16207; }
+  .bw.moving .bagline, .bw.moving .mat.bag, .bw.moving .pallet, .bw.moving .loops { transform: translateX(110px); opacity: 0; transition: transform 1.4s ease-in, opacity 0.4s 1.1s; }
+  .cv rect { fill: color-mix(in srgb, #94a3b8 40%, var(--surface)); stroke: #94a3b8; }
+  .cv.run rect { fill: #bbf7d0; stroke: #16a34a; stroke-dasharray: 6 3; animation: belt 0.5s linear infinite; }
+  @keyframes belt { to { stroke-dashoffset: -10; } }
+
+  .trend { padding: 0.7rem 0.8rem; display: flex; flex-direction: column; gap: 0.5rem; }
+  .read { display: grid; grid-template-columns: 1.3fr 1fr 0.6fr; gap: 0.5rem; }
+  .read div { padding: 0.4rem 0.6rem; border-radius: 10px; background: #0f172a; color: #e2e8f0; }
+  .read small { display: block; font: 600 0.62rem var(--mono); color: #94a3b8; }
+  .read b { font: 800 1.25rem/1.2 var(--mono); color: #4ade80; }
+  .read em { font: 600 0.7rem var(--mono); font-style: normal; color: #94a3b8; margin-left: 0.25rem; }
+  .read div:nth-child(2) b { color: #7dd3fc; }
+  .read div:nth-child(3) b { color: #e2e8f0; }
+  .chart { width: 100%; flex: 1; min-height: 9.5rem; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); }
+  .band { fill: color-mix(in srgb, #22c55e 22%, transparent); }
+  .sp1, .sp2, .spl { stroke-width: 1; vector-effect: non-scaling-stroke; stroke-dasharray: 4 3; }
+  .sp1 { stroke: #f59e0b; }
+  .sp2 { stroke: #a855f7; }
+  .spl { stroke: #16a34a; stroke-dasharray: none; }
+  .trace { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+  .legend { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 0.3rem 0.8rem; font: 600 0.66rem var(--mono); color: var(--muted); }
+  .legend i { display: inline-block; width: 0.9rem; height: 0; border-top: 2px dashed; vertical-align: middle; margin-right: 0.35rem; }
+  .legend .k1 { color: #f59e0b; } .legend .k2 { color: #a855f7; } .legend .k3 { color: #16a34a; border-top: 6px solid color-mix(in srgb, #22c55e 40%, transparent); }
+
+  .bits { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  .bits p { display: flex; justify-content: space-between; align-items: center; margin: 0 0 0.3rem; font: 700 0.75rem var(--mono); color: var(--muted); }
+  .hb { font: 700 0.62rem var(--mono); padding: 0.05rem 0.45rem; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); transition: background 0.15s; }
+  .hb.beat { background: color-mix(in srgb, #22c55e 18%, transparent); color: #16a34a; border-color: #86efac; }
+  .hb.dead { background: color-mix(in srgb, #ef4444 14%, transparent); color: #dc2626; border-color: #fca5a5; text-decoration: line-through; }
+  .bits ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 3px; }
+  .bits li { display: flex; min-width: 0; white-space: nowrap; overflow: hidden; align-items: center; gap: 0.45rem; font: 600 0.7rem var(--mono); color: var(--muted); padding: 0.15rem 0.4rem; border-radius: 6px; }
+  .bits li i { display: inline-grid; place-items: center; width: 1.25rem; height: 1.05rem; border-radius: 4px; font-style: normal; font-size: 0.62rem; background: var(--chip); border: 1px solid var(--line); }
+  .bits li.on { color: var(--ink, inherit); background: color-mix(in srgb, #22c55e 10%, transparent); }
+  .bits li.on i { background: #22c55e; border-color: #16a34a; color: #fff; }
+
+  .lower { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 0.8rem; margin-top: 0.9rem; align-items: start; }
+  .faults { flex-direction: column; align-items: stretch; }
+  .faults button { text-align: left; border-radius: 10px; }
+  .log { margin: 0; padding: 0.5rem 0.7rem; list-style: none; min-height: 9.4rem; border-radius: 12px; background: #0f172a; color: #cbd5e1; font: 0.72rem/1.55 var(--mono); }
+  .log :global(li) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .log :global(time) { color: #64748b; margin-right: 0.6rem; }
+  .log :global(.err) { color: #fca5a5; }
+  .log :global(.ok) { color: #86efac; }
+  .log :global(.warn) { color: #fcd34d; }
+  .note { margin: 0.6rem 0 0; font-size: 0.75rem; color: var(--muted); }
+
+  @media (max-width: 620px) {
+    .head { grid-template-columns: auto minmax(0, 1fr); }
+    .ctl { grid-column: span 2; }
+    .ctl button { flex: 1; }
+    .grid, .bits, .lower { grid-template-columns: minmax(0, 1fr); }
+    .read b { font-size: 1.05rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bw[data-tower='r'] .tower .r, .bw.screwing .screw, .bw.dusting .hose, .cv.run rect, .bw.jetting .jet rect { animation: none; }
+    .bw.moving .bagline, .bw.moving .mat.bag, .bw.moving .pallet, .bw.moving .loops { transition: none; }
+  }
+</style>
