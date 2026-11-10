@@ -1,0 +1,118 @@
+---
+// Purdue levels as zones. Readers pick how the attacker gets in and whether the network is flat or zoned,
+// and see which assets the attacker can reach. Used in the ot-security-factory article.
+const levels = [
+  { id: 'L4', name: 'Enterprise · ออฟฟิศ', assets: [['office', 'Office PC'], ['erp', 'ERP / Email']] },
+  { id: 'L3.5', name: 'IDMZ · ด่านกลาง', dmz: true, assets: [['jump', 'Jump host + MFA'], ['hist2', 'Historian replica']] },
+  { id: 'L3', name: 'Site Operations', assets: [['hist', 'Historian / MES'], ['ews', 'Engineering WS']] },
+  { id: 'L2', name: 'Supervisory', assets: [['scada', 'SCADA / HMI'], ['broker', 'UNS Broker']] },
+  { id: 'L1', name: 'Control', assets: [['plc', 'PLC'], ['sis', 'Safety PLC (SIS)']] },
+  { id: 'L0', name: 'Process', assets: [['valve', 'Valve / Pump'], ['sensor', 'Sensor']] },
+];
+const all = levels.flatMap((l) => l.assets.map((a) => a[0]));
+// What the attacker reaches from each entry point. Flat network: everything.
+const reach = {
+  zoned: {
+    phish: ['office', 'erp', 'hist2'],
+    vendor: ['jump'],
+    usb: ['ews', 'hist', 'scada', 'broker', 'plc', 'valve', 'sensor'],
+  },
+  flat: { phish: all, vendor: all, usb: all },
+};
+const start = { phish: 'office', vendor: 'jump', usb: 'ews' };
+const notes = {
+  'zoned-phish': 'ไฟร์วอลล์ระหว่าง Zone ให้ออฟฟิศเห็นแค่ Historian ตัวสำเนาใน IDMZ มัลแวร์จึงไปต่อไม่ได้ เครื่องจักรยังเดินปกติ',
+  'zoned-vendor': 'Vendor ต้องเข้าผ่าน Jump host ที่มี MFA มีคนอนุมัติ และอัดหน้าจอทุก Session ไม่มีทางลัดตรงถึง PLC',
+  'zoned-usb': 'Segmentation กันคนจากข้างนอก แต่ USB เข้ามาจากข้างในของ Zone เลย ต้องคุม USB และอนุญาตเฉพาะโปรแกรมที่จำเป็นด้วย จุดที่ยังรอดคือ Safety PLC ที่แยกเป็น Zone ของตัวเอง',
+  'flat-phish': 'เครือข่ายแบน ไม่มีด่านกั้น อีเมลฉบับเดียวในออฟฟิศเดินไปถึงวาล์วได้ทั้งเส้น',
+  'flat-vendor': 'โปรแกรม Remote ที่ติดตั้งค้างไว้บนเครื่อง HMI คือประตูหลังที่เปิดถึงทุกเครื่อง',
+  'flat-usb': 'แฟลชไดรฟ์อันเดียวบนเครื่อง Engineering ไปได้ทุกที่ รวมถึง Safety PLC',
+};
+---
+<figure class="zonemap" data-reveal>
+  <div class="ctl">
+    <div class="seg" role="group" aria-label="ช่องทางเข้า">
+      <button type="button" data-entry="phish" class="on">📧 อีเมล Phishing</button>
+      <button type="button" data-entry="vendor">🛠️ Remote ของ Vendor</button>
+      <button type="button" data-entry="usb">💾 USB ที่เครื่อง Engineering</button>
+    </div>
+    <div class="seg" role="group" aria-label="แบบเครือข่าย">
+      <button type="button" data-mode="flat">เครือข่ายแบน</button>
+      <button type="button" data-mode="zoned" class="on">แบ่ง Zone</button>
+    </div>
+  </div>
+
+  <ol class="levels" data-reach={JSON.stringify(reach)} data-start={JSON.stringify(start)} data-notes={JSON.stringify(notes)}>
+    {levels.map((l) => (
+      <li class:list={['lv', { dmz: l.dmz }]}>
+        <span class="lid" lang="en">{l.id}</span>
+        <span class="lname" lang="en">{l.name}</span>
+        <span class="assets">
+          {l.assets.map(([id, label]) => (
+            <span class="asset" data-a={id} lang="en">{label}</span>
+          ))}
+        </span>
+      </li>
+    ))}
+  </ol>
+
+  <p class="result"><span class="count"><strong class="n">3</strong> / {all.length}</span> เครื่องที่ผู้บุกรุกเข้าถึงได้</p>
+  <p class="note"></p>
+  <figcaption>ลำดับชั้นตาม Purdue Model · เส้นแบ่งระหว่างแถวคือ Conduit ที่ต้องผ่านไฟร์วอลล์ เมื่อเลือกแบบแบ่ง Zone</figcaption>
+</figure>
+
+<script>
+  document.querySelectorAll<HTMLElement>('.zonemap').forEach((box) => {
+    const list = box.querySelector<HTMLElement>('.levels')!;
+    const reach = JSON.parse(list.dataset.reach!);
+    const start = JSON.parse(list.dataset.start!);
+    const notes = JSON.parse(list.dataset.notes!);
+    let entry = 'phish', mode = 'zoned';
+    const run = () => {
+      const hit: string[] = reach[mode][entry];
+      box.querySelectorAll<HTMLElement>('.asset').forEach((a) => {
+        a.classList.toggle('hit', hit.includes(a.dataset.a!));
+        a.classList.toggle('entry', a.dataset.a === start[entry]);
+      });
+      box.classList.toggle('flat', mode === 'flat');
+      box.querySelector('.n')!.textContent = String(hit.length);
+      box.querySelector('.note')!.textContent = notes[`${mode}-${entry}`];
+      box.querySelectorAll<HTMLButtonElement>('[data-entry]').forEach((b) => b.classList.toggle('on', b.dataset.entry === entry));
+      box.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.classList.toggle('on', b.dataset.mode === mode));
+    };
+    box.querySelectorAll<HTMLButtonElement>('[data-entry]').forEach((b) => b.addEventListener('click', () => { entry = b.dataset.entry!; run(); }));
+    box.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach((b) => b.addEventListener('click', () => { mode = b.dataset.mode!; run(); }));
+    run();
+  });
+</script>
+
+<style>
+  .zonemap { margin: 2rem 0; padding: 1.2rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); --bad: #e11d48; --ok: #16a34a; }
+  .ctl { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: space-between; margin-bottom: 1rem; }
+  .seg { display: inline-flex; flex-wrap: wrap; gap: 0.25rem; padding: 0.25rem; border: 1px solid var(--line); border-radius: 12px; background: var(--chip); }
+  .seg button { font: inherit; font-size: 0.84rem; padding: 0.35rem 0.75rem; border: 0; border-radius: 9px; background: transparent; color: var(--muted); cursor: pointer; }
+  .seg button.on { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: 0 1px 3px rgb(15 23 42 / 0.12); }
+  .levels { list-style: none; margin: 0; padding: 0; display: grid; }
+  .lv { margin: 0 !important; display: grid; grid-template-columns: 3.4rem 10.5rem 1fr; align-items: center; gap: 0.6rem; padding: 0.55rem 0.4rem; border-top: 3px solid var(--ok); }
+  .lv:first-child { border-top: 0; }
+  .flat .lv { border-top: 1px dashed var(--line); }
+  .flat .lv:first-child { border-top: 0; }
+  .lv.dmz { background: color-mix(in srgb, var(--accent) 6%, transparent); border-radius: 8px; }
+  .lid { font: 700 0.8rem var(--mono); color: var(--accent); }
+  .lname { font-size: 0.82rem; color: var(--muted); line-height: 1.35; }
+  .assets { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .asset { font: 600 0.78rem var(--mono); padding: 0.35rem 0.6rem; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); transition: background 0.25s, border-color 0.25s, color 0.25s; }
+  .asset.hit { background: color-mix(in srgb, var(--bad) 13%, var(--surface)); border-color: var(--bad); color: var(--bad); }
+  .asset.hit::before { content: '⚠ '; }
+  .asset.entry { outline: 2px dashed var(--bad); outline-offset: 2px; }
+  .result { margin: 1rem 0 0.3rem; font-size: 0.95rem; }
+  .count { font-family: var(--mono); margin-right: 0.3rem; }
+  .count strong { font-size: 1.5rem; color: var(--bad); }
+  .note { margin: 0; padding: 0.7rem 0.9rem; border-radius: 10px; background: var(--chip); font-size: 0.92rem; line-height: 1.6; }
+  figcaption { text-align: center; font-size: 0.86rem; color: var(--muted); margin-top: 0.9rem; }
+  @media (max-width: 640px) {
+    .lv { grid-template-columns: 3rem 1fr; }
+    .assets { grid-column: 1 / -1; }
+    .seg { width: 100%; }
+  }
+</style>

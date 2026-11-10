@@ -1,0 +1,56 @@
+---
+// IEC 62443 Security Levels as a slider: who each level is meant to stop, and what that usually takes.
+// Used in the ot-security-factory article.
+const sl = [
+  { who: 'ความพลาดหรือความไม่ตั้งใจ', ex: 'เสียบมือถือชาร์จที่เครื่อง HMI, ใช้รหัสร่วมกันทั้งกะ, ลืมล็อกหน้าจอ', do: 'บัญชีแยกรายคน · ล็อกหน้าจอ · ปิดพอร์ตที่ไม่ใช้' },
+  { who: 'คนตั้งใจ แต่ใช้เครื่องมือทั่วไป ทักษะไม่สูง', ex: 'Ransomware ที่หลุดมาจากออฟฟิศ, บอตที่สแกนหาพอร์ตเปิดบนอินเทอร์เน็ต', do: 'แบ่ง Zone · MFA สำหรับ Remote · Patch หรือมาตรการชดเชย · Backup แบบ Offline' },
+  { who: 'กลุ่มที่มีความรู้ ICS โดยเฉพาะ และมีทรัพยากรปานกลาง', ex: 'กลุ่มที่ศึกษาระบบควบคุมยี่ห้อที่โรงงานใช้ แล้วเจาะจงเป้าหมาย', do: 'Allowlist โปรแกรม · ตรวจจับความผิดปกติใน OT network · Hardening ทุกเครื่อง · ซ้อมแผนรับมือ' },
+  { who: 'ผู้โจมตีระดับรัฐหรือทุนสูงมาก ใช้เวลาเตรียมนาน', ex: 'แบบ Stuxnet ที่ใช้ช่องโหว่ที่ยังไม่มีใครรู้หลายตัวพร้อมกัน', do: 'ทุกอย่างของ SL3 + อุปกรณ์ที่ออกแบบให้ปลอดภัยตั้งแต่ระดับฮาร์ดแวร์ · ทีมเฝ้าระวังตลอดเวลา' },
+];
+---
+<figure class="sl" data-reveal data-sl={JSON.stringify(sl)}>
+  <div class="head">
+    <label for="sl-range">IEC 62443 · Security Level</label>
+    <output class="lv" lang="en">SL 2</output>
+  </div>
+  <input id="sl-range" type="range" min="1" max="4" step="1" value="2" />
+  <div class="ticks" aria-hidden="true" lang="en"><span>SL1</span><span>SL2</span><span>SL3</span><span>SL4</span></div>
+  <dl>
+    <div><dt>กันใคร</dt><dd class="who">{sl[1].who}</dd></div>
+    <div><dt>ตัวอย่าง</dt><dd class="ex">{sl[1].ex}</dd></div>
+    <div><dt>ต้องมีอะไร</dt><dd class="do">{sl[1].do}</dd></div>
+  </dl>
+  <figcaption>โรงงานส่วนใหญ่ควรตั้งเป้า <strong>SL2</strong> ให้ได้ก่อน แล้วค่อยยก Zone ที่สำคัญมาก เช่น Safety ขึ้นไป SL3</figcaption>
+</figure>
+
+<script>
+  document.querySelectorAll<HTMLElement>('.sl').forEach((box) => {
+    const sl = JSON.parse(box.dataset.sl!);
+    const input = box.querySelector<HTMLInputElement>('input')!;
+    const run = () => {
+      const i = Number(input.value) - 1;
+      box.querySelector('.lv')!.textContent = `SL ${i + 1}`;
+      box.querySelector('.who')!.textContent = sl[i].who;
+      box.querySelector('.ex')!.textContent = sl[i].ex;
+      box.querySelector('.do')!.textContent = sl[i].do;
+      box.style.setProperty('--p', String(i / 3));
+    };
+    input.addEventListener('input', run);
+    run();
+  });
+</script>
+
+<style>
+  .sl { margin: 2rem 0; padding: 1.2rem 1.3rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); --c: color-mix(in srgb, #e11d48 calc(var(--p, 0.33) * 100%), var(--accent)); }
+  .head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+  .head label { font-weight: 700; }
+  .lv { font: 800 1.6rem var(--mono); color: var(--c); }
+  input { width: 100%; margin: 0.6rem 0 0.2rem; accent-color: var(--c); }
+  .ticks { display: flex; justify-content: space-between; font: 600 0.72rem var(--mono); color: var(--muted); }
+  dl { margin: 1rem 0 0; display: grid; gap: 0.5rem; }
+  dl div { display: grid; grid-template-columns: 6.5rem 1fr; gap: 0.6rem; padding: 0.6rem 0.8rem; border-radius: 10px; background: var(--chip); }
+  dt { font-weight: 700; font-size: 0.86rem; color: var(--c); }
+  dd { margin: 0; font-size: 0.92rem; line-height: 1.6; }
+  figcaption { text-align: center; font-size: 0.86rem; color: var(--muted); margin-top: 0.9rem; }
+  @media (max-width: 560px) { dl div { grid-template-columns: 1fr; gap: 0.1rem; } }
+</style>

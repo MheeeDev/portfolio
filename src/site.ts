@@ -9,7 +9,7 @@ export const site = {
   sloganTh: 'ลงมือสร้าง · ทดสอบให้มั่นใจ · ส่งมอบหน้างานจริง · แล้วเอามาแชร์ต่อ',
   intro: 'แชร์ความรู้งาน Automation จากหน้างานจริง ทั้ง PLC, SCADA, OT/IT และเครื่องมือ AI ที่ช่วยให้ทำงานเร็วขึ้น',
   // "Now building" line under the hero buttons. Empty = hidden.
-  now: 'กำลังทำ: บทความ OT Security สำหรับโรงงาน',
+  now: 'ล่าสุด: บทความ OT Security สำหรับโรงงาน',
   // "What I do" tiles on the home page.
   services: [
     { icon: 'plc', title: 'PLC & Controls', text: 'Siemens S7-1200/1500, Rockwell ControlLogix, Mitsubishi FX5U — sequences, PID loops, drives and safety.' },

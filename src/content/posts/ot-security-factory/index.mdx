@@ -1,0 +1,246 @@
+---
+title: OT Security สำหรับโรงงาน · ล็อกประตูทีละบาน ตั้งแต่ Zone จนถึง Topic
+summary: ยิ่งเชื่อมโรงงานเข้ากับ IT มากเท่าไร ประตูก็ยิ่งเยอะขึ้น บทความนี้เล่า OT Security แบบเข้าใจง่าย ตั้งแต่ Purdue Model, Zone และ Conduit ตาม IEC 62443 ไปจนถึงลงมือล็อก UNS Lab จริงด้วยรหัสผ่าน ACL และ TLS พร้อมผลทดสอบก่อนและหลังล็อก
+date: 2026-11-10
+category: ot-it
+tags: [OT Security, IEC 62443, Purdue Model, MQTT, UNS]
+lang: th
+cover: ./cover.webp
+coverAlt: ภาพปก Who holds the keys? OT Security สำหรับโรงงาน มีแผนผัง Purdue Model ที่แบ่ง Zone ผลทดสอบ Broker ที่ปฏิเสธคนแปลกหน้า และป้าย IEC 62443 Purdue Model MQTT + TLS Ignition
+draft: false
+---
+
+ใน [EP.04](/blog/unified-namespace-mqtt-ignition-grafana/) เราสร้าง UNS Lab ที่ Broker เปิดให้**ใครก็ต่อได้** เพื่อให้เริ่มง่าย
+วันนี้ลองสวมบทคนแปลกหน้าที่เสียบสาย LAN เข้ามาในเครือข่ายเดียวกันดูครับ ไม่มีรหัสผ่าน ไม่มีบัญชี ไม่มีอะไรเลย
+
+<AttackLog
+  title="ก่อนล็อก · Broker แบบเปิด"
+  items={[
+    { who: 'stranger', tried: 'ขออ่านทุก Topic ของโรงงาน', result: 'open', out: '$ mosquitto_sub -t "iae-lab/#" -v\niae-lab/rayong/utilities/water/tk101/level {"value": 49.96, "unit": "%"}\niae-lab/rayong/utilities/water/tk101/sp {"value": 50.0, "unit": "%"}\niae-lab/rayong/utilities/water/tk101/status {"online": 1}' },
+    { who: 'stranger', tried: 'สั่ง Setpoint ถังเป็น 90 %', result: 'open', out: '$ mosquitto_pub -i stranger -t ".../tk101/cmd/sp" -m \'{"value": 90}\'\nsimulator-1  | new setpoint 90.0 %' },
+  ]}
+/>
+
+ไม่ถึงนาที คนที่ไม่มีใครรู้จักก็**เห็นทุกค่า**ในโรงงาน และ**สั่งถังได้**
+ที่ยังไม่ล้นก็เพราะตัวจำลองเราตั้งเพดาน Setpoint ไว้ที่ 90 % ซึ่งเป็นด่านสุดท้ายที่ไม่ควรต้องพึ่งเลย
+
+<Quote en="Every connection you add to the plant is a door. Security is deciding who holds the keys." kicker="// OT SECURITY">
+ทุกสายที่ต่อเข้าโรงงานคือ**ประตู** · Security คือการตัดสินใจว่า**ใครถือกุญแจ**
+</Quote>
+
+## OT ไม่ใช่ IT ที่อยู่ในโรงงาน
+
+หลายคนเริ่มจากเอาวิธีของ IT มาใช้ตรง ๆ แล้วเจอปัญหา เพราะสิ่งที่สองฝั่งต้องปกป้อง**ก่อน**ไม่เหมือนกัน
+
+| | IT ในออฟฟิศ | OT ในโรงงาน |
+|---|---|---|
+| สิ่งที่สำคัญที่สุด | ข้อมูลต้องไม่รั่ว (Confidentiality) | **คนต้องปลอดภัย** และเครื่องต้องเดินต่อได้ (Safety, Availability) |
+| อายุอุปกรณ์ | 3–5 ปี | 15–20 ปีขึ้นไป |
+| Patch / Reboot | ทำได้ทุกเดือน | ต้องรอหยุดเครื่อง บางเครื่องไม่มี Patch แล้ว |
+| ผลของการโจมตี | ข้อมูลหาย เสียเงิน | เครื่องเสีย ของเสีย สิ่งแวดล้อม และ**ชีวิตคน** |
+| การสแกนหาช่องโหว่ | ทำได้ตลอด | สแกนแรง ๆ อาจทำให้ PLC รุ่นเก่าค้าง |
+
+เพราะแบบนี้ OT Security จึงไม่ได้เริ่มจาก "ติดตั้งโปรแกรมป้องกันไวรัส" แต่เริ่มจาก**แบ่งพื้นที่และคุมทางเข้าออก**
+
+### เรื่องจริงที่วงการจำไม่ลืม
+
+- **Stuxnet (ค้นพบปี 2010)** มัลแวร์ที่แพร่ผ่าน USB ไปแก้โปรแกรม PLC ให้เครื่องเหวี่ยงเสียหาย ขณะที่หน้าจอยังแสดงค่าปกติ
+- **โครงข่ายไฟฟ้ายูเครน (ธันวาคม 2015)** ผู้โจมตีเข้าระบบ SCADA แล้วสั่งตัดวงจรจากระยะไกล บ้านหลายแสนหลังไฟดับ
+- **TRITON (2017)** มัลแวร์ที่เล็งระบบ Safety Instrumented System ของโรงงานปิโตรเคมี ซึ่งเป็นด่านสุดท้ายที่ปกป้องชีวิตคน
+- **Colonial Pipeline (2021)** Ransomware โจมตีฝั่ง IT แต่บริษัทต้องหยุดส่งน้ำมันทั้งท่อเพื่อความปลอดภัย
+
+ข้อสุดท้ายน่าคิดที่สุดครับ **OT ไม่ต้องโดนโจมตีโดยตรงก็หยุดได้** แค่ไม่มั่นใจว่าเชื่อใจระบบได้หรือเปล่า ก็ต้องหยุดแล้ว
+
+## Purdue Model · แบ่งโรงงานเป็นชั้น
+
+ก่อนจะล็อกอะไร ต้องรู้ก่อนว่าอะไรอยู่ตรงไหน **Purdue Model** แบ่งระบบในโรงงานเป็นชั้น ตั้งแต่เซนเซอร์ที่ Level 0 ไปจนถึงออฟฟิศที่ Level 4
+ส่วนมาตรฐาน **IEC 62443** เพิ่มอีกสองคำที่สำคัญมาก
+
+- **Zone** คือกลุ่มของเครื่องที่ต้องการความปลอดภัยระดับเดียวกัน
+- **Conduit** คือทางเชื่อมระหว่าง Zone ซึ่ง**ต้องผ่านด่าน**เสมอ เช่น ไฟร์วอลล์ที่อนุญาตเฉพาะสิ่งที่จำเป็น
+
+ลองเลือกว่าผู้บุกรุกเข้ามาทางไหน แล้วสลับระหว่างเครือข่ายแบนกับเครือข่ายที่แบ่ง Zone ดูครับ
+
+<ZoneMap />
+
+สังเกตกรณี USB ไหมครับ Segmentation ช่วยได้มาก แต่**ไม่ใช่ทุกอย่าง**
+ภัยที่เดินเข้ามาด้วยมือคนจะอยู่ใน Zone ตั้งแต่แรก จึงต้องมีอีกหลายชั้นช่วยกัน ซึ่งเรียกว่า **Defense in Depth**
+
+<Quote en="Segmentation stops the stranger at the gate. It does nothing about the USB stick already inside.">
+Zone กั้น**คนแปลกหน้า**ได้ · แต่กั้น**แฟลชไดรฟ์ที่อยู่ข้างในแล้ว**ไม่ได้
+</Quote>
+
+## IEC 62443 ในหนึ่งหน้า
+
+IEC 62443 เป็นชุดมาตรฐานความปลอดภัยของระบบควบคุมอุตสาหกรรม แบ่งตามบทบาทของแต่ละฝ่าย
+
+| ส่วน | สำหรับใคร | เรื่องหลัก |
+|---|---|---|
+| **62443-2-1** | เจ้าของโรงงาน | โปรแกรมความปลอดภัยขององค์กร |
+| **62443-3-2** | ทีมออกแบบระบบ | ประเมินความเสี่ยง และแบ่ง Zone / Conduit |
+| **62443-3-3** | System Integrator | ข้อกำหนดของระบบ และ Security Level |
+| **62443-4-1 / 4-2** | ผู้ผลิตอุปกรณ์ | การพัฒนาสินค้าให้ปลอดภัย และข้อกำหนดของอุปกรณ์แต่ละชิ้น |
+
+ใน 62443-3-3 มีข้อกำหนดพื้นฐาน 7 ข้อ (Foundational Requirements) ที่เราชอบใช้เป็นเช็กลิสต์เวลาออกแบบ
+
+1. **ระบุตัวตน** ทุกคนและทุกระบบต้องมีบัญชีของตัวเอง
+2. **คุมการใช้งาน** แต่ละบัญชีทำได้เฉพาะสิ่งที่จำเป็น
+3. **ความถูกต้องของระบบ** ข้อมูลและโปรแกรมต้องไม่ถูกแก้โดยไม่มีใครรู้
+4. **ความลับของข้อมูล** ข้อมูลที่ข้าม Zone ต้องเข้ารหัส
+5. **จำกัดการไหลของข้อมูล** ข้อมูลข้าม Zone ได้เฉพาะผ่าน Conduit
+6. **ตอบสนองเหตุการณ์ได้ทัน** มี Log และมีคนดู
+7. **ระบบต้องพร้อมใช้** มาตรการความปลอดภัยต้องไม่ทำให้เครื่องหยุด
+
+แต่ละ Zone ยังมี **Security Level (SL)** บอกว่าต้องกันผู้บุกรุกระดับไหน
+
+<SlLadder />
+
+---
+
+## ลงมือ: ล็อก UNS Lab ทีละชั้น
+
+กลับมาที่ Lab จาก EP.04 ครับ เราจะใช้ข้อ 1, 2, 4 และ 5 ของ 62443 ล็อก Broker ทีละชั้น
+ทุกอย่างอยู่ในไฟล์ Compose แยกที่ซ้อนทับไฟล์เดิม จะสลับกลับไปโหมดเปิดเมื่อไหร่ก็ได้
+
+### ชั้น 1 · ปิดประตูหน้าบ้าน และให้ทุกระบบมีบัญชีของตัวเอง
+
+```text
+# mosquitto/secure.conf
+per_listener_settings false
+
+# Inside the zone: only containers on the lab network reach this port.
+listener 1883
+
+# The conduit: the only port the outside sees, and it is encrypted.
+listener 8883
+cafile   /mosquitto/certs/ca.crt
+certfile /mosquitto/certs/server.crt
+keyfile  /mosquitto/certs/server.key
+
+allow_anonymous false
+password_file /mosquitto/config/passwd
+acl_file      /mosquitto/config/acl
+```
+
+บัญชีมี 4 ตัว แยกตามหน้าที่ ไม่มีบัญชีไหนใช้ร่วมกัน
+
+```bash
+mosquitto_passwd -b passwd tk101-sim  <password>
+mosquitto_passwd -b passwd telegraf   <password>
+mosquitto_passwd -b passwd scada      <password>
+mosquitto_passwd -b passwd viewer     <password>
+```
+
+### ชั้น 2 · ACL ให้สิทธิ์เท่าที่จำเป็น (Least Privilege)
+
+นี่คือหัวใจของบทความนี้ครับ **ทุกบัญชีทำได้แค่งานของตัวเอง**
+
+```text
+# mosquitto/acl
+# The tank publishes its own values and only listens to its own commands.
+user tk101-sim
+topic write iae-lab/rayong/utilities/water/tk101/+
+topic read  iae-lab/rayong/utilities/water/tk101/cmd/#
+
+# The historian only reads data, never commands.
+user telegraf
+topic read iae-lab/+/+/+/+/+
+
+# SCADA reads everything and is the only one allowed to send commands.
+user scada
+topic read  iae-lab/#
+topic write iae-lab/+/+/+/+/cmd/#
+
+# Dashboards and reports: read-only.
+user viewer
+topic read iae-lab/#
+```
+
+เห็นไหมครับว่าโครง Topic แบบ ISA-95 ที่ออกแบบไว้ใน EP.04 กลายเป็นเครื่องมือด้านความปลอดภัยไปด้วย
+แยก `cmd/` ออกจากข้อมูลตั้งแต่แรก วันนี้เลยเขียน ACL ได้ในไม่กี่บรรทัด
+
+### ชั้น 3 · TLS ที่ Conduit และไม่ให้พอร์ตภายในหลุดออกนอก Zone
+
+```yaml
+# docker-compose.secure.yml (excerpt)
+services:
+  mosquitto:
+    ports: !override
+      - "8883:8883"   # only the TLS port leaves the lab network; 1883 stays inside
+```
+
+ใบรับรองของ Lab ทำเองด้วย `openssl` เป็น CA ของ Lab หนึ่งใบ กับใบของ Broker ที่ระบุชื่อ `mosquitto` และ `localhost`
+งานจริงควรใช้ CA ขององค์กร และกำหนดวันหมดอายุพร้อมแผนต่ออายุให้ชัด
+
+### ผลทดสอบหลังล็อก
+
+เราลองโจมตี Lab ตัวเองซ้ำทุกแบบ นี่คือผลจริงจาก Terminal ครับ
+
+<AttackLog
+  title="หลังล็อก · บัญชีแยก + ACL + TLS"
+  items={[
+    { who: 'stranger', tried: 'ต่อแบบไม่ใส่รหัส', result: 'blocked', out: '$ mosquitto_sub -p 1883 -t "iae-lab/#"\nConnection error: Connection Refused: not authorised' },
+    { who: 'guesser', tried: 'เดารหัสผ่านของ viewer', result: 'blocked', out: '$ mosquitto_sub -u viewer -P guess123 -t "iae-lab/#"\nConnection error: Connection Refused: not authorised' },
+    { who: 'viewer', tried: 'อ่านค่าผ่าน TLS ด้วย CA ของ Lab', result: 'allowed', out: '$ mosquitto_sub -p 8883 --cafile ca.crt -u viewer -t ".../tk101/level" -v\niae-lab/rayong/utilities/water/tk101/level {"value": 50.16, "unit": "%"}' },
+    { who: 'viewer', tried: 'สั่ง Setpoint เป็น 90 %', result: 'blocked', out: '$ mosquitto_pub -V 5 -u viewer -q 1 -t ".../tk101/cmd/sp" -m \'{"value": 90}\'\nWarning: Publish 1 failed: Not authorized.\nsp ก่อน 65.0 → sp หลัง 65.0' },
+    { who: 'tk101-sim', tried: 'บัญชีของถัง TK-101 แอบส่งค่าแทนถัง TK-102', result: 'blocked', out: '$ mosquitto_pub -u tk101-sim -q 1 -t ".../tk102/level" -m \'{"value": 99}\'\nviewer subscribe ".../tk102/level" → Timed out (ไม่มีข้อความหลุดออกไป)' },
+    { who: 'scada', tried: 'SCADA สั่ง Setpoint เป็น 65 %', result: 'allowed', out: '$ mosquitto_pub -u scada -q 1 -t ".../tk101/cmd/sp" -m \'{"value": 65}\'\nsimulator-1  | new setpoint 65.0 %' },
+    { who: 'host', tried: 'สแกนพอร์ตจากเครื่องนอก Zone', result: 'blocked', out: '1883 closed on host\n8883 open on host (TLS only)' },
+  ]}
+/>
+
+<Callout type="story" title="เจอจริงตอนล็อก: SCADA โดนเตะออกเป็นตัวแรก">
+ทันทีที่ปิด Anonymous ตัวที่หลุดเป็นตัวแรกคือ **Ignition** ของเราเอง เพราะ MQTT Engine ยังต่อแบบไม่มีรหัส
+
+`MqttSecurityException: Not authorized to connect`
+
+บทเรียนคือ**ทำรายการก่อนว่าใครต่อ Broker อยู่บ้าง** แล้วสร้างบัญชีให้ครบก่อนปิดประตู ไม่งั้นระบบที่ควรทำงานจะหยุดเอง ซึ่งขัดกับข้อ 7 ของ 62443 พอดี
+</Callout>
+
+<Callout type="note" title="MQTT 3.1.1 ไม่บอกผู้ส่งว่าโดนปฏิเสธ">
+ตอนที่ viewer สั่ง Setpoint ด้วย MQTT 3.1.1 คำสั่ง `mosquitto_pub` จบด้วย exit code 0 เหมือนส่งสำเร็จ แต่ Broker ทิ้งข้อความไปเงียบ ๆ
+พอเปลี่ยนเป็น MQTT 5 (`-V 5`) ถึงได้คำตอบชัด ๆ ว่า `Not authorized` เวลาไล่ปัญหาจึงต้องเช็กที่ปลายทางเสมอ ไม่ใช่ดูแค่ว่าฝั่งส่งไม่ Error
+</Callout>
+
+---
+
+## สิ่งที่ห้ามทำในนามความปลอดภัย
+
+ความปลอดภัยที่ทำให้เครื่องหยุดเอง ก็คือการโจมตีที่เราทำกับตัวเองครับ
+
+<Callout type="safety" title="Do no harm · กฎข้อแรกของ OT Security">
+- **ห้ามสแกนเครือข่าย PLC แบบเต็มกำลังระหว่างเดินเครื่อง** อุปกรณ์รุ่นเก่าบางตัวค้างได้จากการสแกนธรรมดา ให้ใช้วิธีฟังเงียบ ๆ (Passive) หรือนัดช่วงหยุดเครื่อง
+- **ห้ามเปิด Auto-update บนเครื่อง HMI ที่เดินเครื่องอยู่** ทดสอบ Patch บนเครื่องสำรองหรือ Digital Twin ก่อน แบบเดียวกับใน [EP.02](/blog/digital-twin-test-before-commissioning/)
+- **ห้ามปิดพอร์ตหรือบล็อกทราฟฟิกโดยไม่รู้ว่าใครใช้อยู่** ทำรายการก่อนเสมอ อย่างที่เราเจอกับ Ignition ข้างบน
+- **ห้ามให้ Interlock และ Safety ไปพึ่ง Network** UNS ล่มเมื่อไร PLC ต้องยังปกป้องเครื่องได้เหมือนเดิม
+</Callout>
+
+## 10 ข้อที่เริ่มทำได้พรุ่งนี้
+
+ไม่ต้องรองบประมาณก้อนใหญ่ก็เริ่มได้ครับ เรียงจากทำง่ายไปยาก
+
+<Checklist
+  title="OT Security ขั้นต่ำสำหรับโรงงาน"
+  items={[
+    'ทำรายการอุปกรณ์ทั้งหมดในเครือข่าย OT พร้อมเวอร์ชัน Firmware',
+    'เปลี่ยนรหัสผ่านตั้งต้นของทุกอุปกรณ์ และเลิกใช้บัญชีร่วมกันทั้งกะ',
+    'ถอนโปรแกรม Remote ที่ติดตั้งค้างไว้บน HMI ให้ Vendor เข้าผ่าน Jump host ที่มี MFA',
+    'แยกเครือข่าย OT ออกจากออฟฟิศ และกำหนดว่าอะไรข้ามได้บ้าง',
+    'มีนโยบาย USB และสแกนไฟล์ก่อนนำเข้าเครื่อง Engineering',
+    'Backup โปรแกรม PLC / HMI แบบ Offline และซ้อม Restore จริงอย่างน้อยปีละครั้ง',
+    'เปิด Log ของ Firewall, Broker และ SCADA แล้วกำหนดว่าใครเป็นคนดู',
+    'วางแผน Patch หรือมาตรการชดเชยสำหรับเครื่องที่ Patch ไม่ได้',
+    'เขียนแผนรับมือเหตุการณ์ที่มีทั้งทีม IT และทีมหน้างาน แล้วซ้อมร่วมกัน',
+    'ใส่ข้อกำหนดด้านความปลอดภัยลงใน TOR ของ Vendor และ System Integrator',
+  ]}
+/>
+
+ถ้าโรงงานของคุณอยู่ในกลุ่มโครงสร้างพื้นฐานสำคัญ เช่น พลังงานหรือสาธารณูปโภค ยังมีข้อกำหนดตาม **พ.ร.บ.การรักษาความมั่นคงปลอดภัยไซเบอร์ พ.ศ. 2562** ที่ต้องดูประกอบด้วย
+
+<Quote en="Security isn't a product you install. It's a habit the whole plant keeps." kicker="// END OF SEQUENCE">
+Security ไม่ใช่**โปรแกรมที่ติดตั้ง** · แต่คือ**นิสัย**ที่ทั้งโรงงานต้องมีร่วมกัน
+</Quote>
+
+บทความนี้ปิดเป้าหมายข้อ 3 จากบทความ [ปริญญาคือ Initial Condition](/blog/chemical-engineer-to-automation/) แล้วครับ
+
+ถ้าโรงงานของคุณกำลังเริ่มเรื่อง OT Security หรืออยากชวนคุยเรื่องการแบ่ง Zone ทักมาได้ที่หน้า [ติดต่อ](/contact/) นะครับ

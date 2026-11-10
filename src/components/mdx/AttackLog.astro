@@ -1,0 +1,39 @@
+---
+// Test attempts against the lab broker with the real terminal output, before and after locking it down.
+// <AttackLog title="..." items={[{ who, tried, out, result: 'blocked' | 'allowed' | 'open' }]} />
+interface Item { who: string; tried: string; out: string; result: 'blocked' | 'allowed' | 'open' }
+interface Props { title: string; items: Item[] }
+const { title, items } = Astro.props;
+const badge = { blocked: 'BLOCKED', allowed: 'ALLOWED', open: 'OPEN' };
+---
+<figure class="alog" data-reveal>
+  <p class="title">{title}</p>
+  <ol>
+    {items.map((it) => (
+      <li class={it.result}>
+        <div class="row">
+          <span class="who" lang="en">{it.who}</span>
+          <span class="tried">{it.tried}</span>
+          <span class="badge" lang="en">{badge[it.result]}</span>
+        </div>
+        <pre lang="en"><code>{it.out}</code></pre>
+      </li>
+    ))}
+  </ol>
+</figure>
+
+<style>
+  .alog { margin: 2rem 0; padding: 1.2rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); }
+  .title { margin: 0 0 0.8rem; font-weight: 700; }
+  ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.7rem; }
+  li { margin: 0 !important; border: 1px solid var(--line); border-left: 4px solid var(--c); border-radius: 12px; overflow: hidden; }
+  .blocked { --c: #16a34a; }
+  .allowed { --c: var(--accent); }
+  .open { --c: #e11d48; }
+  .row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.7rem; padding: 0.55rem 0.8rem; }
+  .who { font: 700 0.76rem var(--mono); padding: 0.15rem 0.5rem; border-radius: 6px; background: var(--chip); }
+  .tried { font-size: 0.9rem; }
+  .badge { font: 700 0.7rem var(--mono); letter-spacing: 0.06em; padding: 0.2rem 0.55rem; border-radius: 6px; color: #fff; background: var(--c); }
+  pre { margin: 0; padding: 0.6rem 0.8rem; border-radius: 0; background: #0f172a; color: #e2e8f0; font-size: 0.78rem; white-space: pre-wrap; word-break: break-word; }
+  @media (max-width: 560px) { .row { grid-template-columns: 1fr auto; } .tried { grid-column: 1 / -1; grid-row: 2; } }
+</style>
