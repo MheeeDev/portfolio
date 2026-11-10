@@ -97,8 +97,7 @@ setpoint, with the reaction curve and the closed-loop response recorded on the P
 - Below 20 % the gain falls to 0.3–0.6, so a PID tuned for the upper range is too gentle there:
   the measured evidence for adding MPC on top of PID in Phase II
 - The habit this project started — measure the process, then tune from a model — runs through
-  my later work: the [PID tuning tool](../2025-pid-tuning-tool/) and the
-  [digital twin rig](../2025-digital-twin-rig/)
+  my later work, such as the [digital twin rig](../2025-digital-twin-rig/)
 
 ## Skills used
 
