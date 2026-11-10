@@ -1,0 +1,99 @@
+---
+title: Laundry Equipment Factory — Multi-Voltage Test Stations & Line Upgrades
+summary: Two new test stations that power every export version of a commercial dryer from 110 V to 460 V, with the circuit chosen from model data, plus five power, gas, pick-to-light and interlock jobs.
+company: MIAC Automation
+period: { start: 2026-03, end: 2026-10 } # TODO: confirm real start/end months
+role: Controls engineer — control design and documents, PLC and HMI programming, SCADA handshakes, FAT and commissioning
+sector: Manufacturing — commercial laundry equipment for export
+platforms: [Rockwell CompactLogix 5370, Studio 5000 (AOI, UDT, Structured Text), POINT I/O 1734, FactoryTalk Optix, Ignition, MySQL, Schneider switchgear]
+tags: [PLC, HMI, SCADA, Test stand, Commissioning]
+cover: ./cover.webp
+coverAlt: Cover — Every voltage, one test stand. Drawn illustrations of a commercial front-load washer and a stacked washer-dryer, the circuit picker, and Rockwell, Ignition, Schneider Electric and MySQL logos.
+highlights:
+  - 7 supply voltages and 63 circuits per test station, chosen by the PLC from the model's data
+  - One test-sequence AOI with SCADA handshakes, timeouts, two alarm classes and jump-step prevention
+  - Design documents delivered as a small website with editable configuration and clickable HMI mockups
+  - Five more jobs in the same plant — power upgrades, gas valves, 37-slot pick-to-light, MySQL interlock
+track: industry
+featured: true
+---
+
+import StatStrip from '../../../components/mdx/StatStrip.astro';
+import SupplyPicker from '../../../components/mdx/SupplyPicker.astro';
+
+## Problem
+
+A factory building commercial washers and dryers for export has to power-test every machine at the
+voltage its market uses — from 110 V single phase to 460 V three phase, with full-load currents from a
+few amps (gas-heated) to well over 100 A (electric-heated), and two supplies at once for stacked units.
+Two new test stations for large dryers were needed, and leaving the circuit choice to operators meant
+every test was a chance to energise a machine on the wrong supply or behind an oversized breaker.
+
+<StatStrip items={[
+  { value: '7', label: 'supply voltages per station' },
+  { value: '63', label: 'circuits per station' },
+  { value: '6', label: 'jobs in the same plant' },
+  { value: '37', label: 'pick-to-light slots' },
+]} />
+
+## My role & scope
+
+Controls engineer on the integrator's team for six jobs in the plant during 2026:
+
+- **New test stations (main job)** — control design, design documents, PLC and HMI programming,
+  SCADA handshakes, FAT
+- **Power upgrades** — two test-stand power-supply upgrades: overload-detection program changes,
+  HMI updates and commissioning
+- **Gas valves** — commissioning on live test stands
+- **Pick-to-light** — operator screens and logic for 37 slots on the plant's existing Ignition licence
+- **Previous-station interlock** — Ignition to MySQL read, PLC step and Optix alarms
+
+## Approach
+
+- **Supply from transformers, choice from data.** 400 V from the MDB feeds five auto-transformers
+  (200, 230, 380, 440, 460 V) and an isolation transformer (110 V). Each voltage splits into circuits
+  by current band, each with its own MCB, relay, contactor and plug.
+- **The model picks the circuit.** SCADA returns the scanned model's voltage, phase, full-load amps,
+  single or stacked, and heater type; the PLC finds the matching row and the HMI tells the operator
+  which plug to connect. No match stops the sequence with a model-data alarm.
+- **One AOI, one step machine.** Login, station, model and serial scans, drawing confirmation,
+  energise, run and result, with request/response handshakes and 10-second timeouts. Hardware trips
+  latch and return to step 0; communication alarms warn without dropping the cycle.
+- **Documents you can click.** Overview, editable configuration with one-click station replication,
+  the sequence of operations with its Structured Text, and interactive HMI mockups — reviewed with
+  the client before coding.
+
+<SupplyPicker />
+
+## Delivery
+
+- **Test stations** — design website, PLC program and AOI, Optix screens and a 29-page FAT test sheet
+- **Stacked-unit test stands (3)** — larger MCBs and contactors, new cable and plugs, overload program
+  updated; installed from a Sunday with commissioning on day three
+- **Product audit station** — converted to test both washers and stacked units, with a new MCC
+  section, transformer and 10-inch HMI
+- **Gas valves** — multicore cabling done in the lunch break on running stations, then commissioning
+- **Pick-to-light** — 37 slots, barcode scanner and PC to the plant's track-and-trace standard
+- **Previous-station interlock** — read-only MySQL connection, transaction groups, a new PLC check
+  step and four specific alarms on the HMI
+
+## Result
+
+- Every export version can be tested on the same stations without the operator choosing a breaker
+- A second station built by replicating the first station's configuration
+- Upgrades and new functions delivered into a running plant with planned, short stops
+- Parts that failed the previous station can no longer move on, and every check is recorded
+
+The full story in Thai, with the interactive circuit picker and the step table, is in the
+[blog article](/blog/multi-voltage-test-stand-laundry-factory/).
+
+## Skills used
+
+- **PLC:** CompactLogix, Studio 5000 Add-On Instructions, UDT design, Structured Text step machines,
+  POINT I/O, serial barcode input
+- **HMI / SCADA:** FactoryTalk Optix, Ignition (handshakes, transaction groups, database connections),
+  MySQL
+- **Power:** multi-voltage test supplies, transformer and breaker sizing inputs, contactor feedback
+  and overload interlocks
+- **Engineering:** design documents as a website, configuration data and tag conventions, FAT
+- **Field work:** installation planning around production, commissioning in a running plant

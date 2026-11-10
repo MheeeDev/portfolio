@@ -1,0 +1,204 @@
+---
+// The test stand's supply table, as the PLC uses it: a machine's voltage, phase and full-load amps
+// pick one of 63 circuits (MCB, contactor and plug). A stacked unit needs a second, lower circuit.
+// Rows come from the stand's real circuit list; tag names follow <stand><volt><phase><max A><U|L>.
+interface Props { title?: string }
+const { title = 'Pick a machine, the stand picks the circuit' } = Astro.props;
+// [voltage, phase, min A, max A, MCB A, position, plug]
+const rows: [number, number, number, number, number, 'U' | 'L', string][] = [
+  [110,1,1,13,16,'U','1'],[110,1,13,16,20,'U','1'],
+  [200,1,1,53,63,'U','1'],[200,1,53,64,80,'U','1'],[200,1,64,100,125,'U','1'],[200,1,100,125,160,'U','1'],[200,1,125,145,160,'U','2'],
+  [200,3,1,28,32,'U','3-1'],[200,3,28,34,40,'U','3-1'],[200,3,34,42,50,'U','3-1'],[200,3,42,53,63,'U','3-1'],[200,3,53,64,80,'U','3-1'],[200,3,64,87,100,'U','3-1'],[200,3,87,140,160,'U','3-1'],
+  [230,1,1,40,50,'U','1'],[230,1,40,53,63,'U','1'],[230,1,53,80,100,'U','1'],[230,1,80,100,125,'U','1'],[230,1,100,140,160,'U','1'],
+  [230,3,1,13,16,'U','3-1'],[230,3,13,28,32,'U','3-1'],[230,3,28,34,40,'U','3-1'],[230,3,34,53,63,'U','3-1'],[230,3,53,64,80,'U','3-1'],[230,3,64,80,100,'U','3-1'],[230,3,80,100,125,'U','3-1'],
+  [380,3,1,13,16,'U','4-1'],[380,3,13,16,20,'U','4-1'],[380,3,16,20,25,'U','4-1'],[380,3,20,28,32,'U','4-1'],[380,3,28,34,40,'U','4-1'],[380,3,34,42,50,'U','4-1'],[380,3,42,56,63,'U','4-1'],
+  [400,3,1,16,20,'U','4-1'],[400,3,16,20,25,'U','4-1'],[400,3,20,34,40,'U','4-1'],[400,3,34,42,50,'U','4-1'],[400,3,42,53,63,'U','4-1'],[400,3,53,64,80,'U','4-1'],
+  [440,3,1,13,16,'U','5-1'],[440,3,13,20,25,'U','5-1'],[440,3,20,28,32,'U','5-1'],[440,3,28,34,40,'U','5-1'],[440,3,34,42,50,'U','5-1'],[440,3,42,53,63,'U','5-1'],
+  [460,3,1,13,16,'U','5-1'],[460,3,13,16,20,'U','5-1'],[460,3,16,28,32,'U','5-1'],[460,3,28,34,40,'U','5-1'],[460,3,34,42,50,'U','5-1'],[460,3,42,53,63,'U','5-1'],
+  [200,3,34,42,50,'L','3-2'],[200,3,53,64,80,'L','3-2'],[230,3,28,34,40,'L','3-2'],[230,3,34,53,63,'L','3-2'],
+  [380,3,16,20,25,'L','4-2'],[380,3,28,34,40,'L','4-2'],[400,3,16,20,25,'L','4-2'],[400,3,20,34,40,'L','4-2'],
+  [440,3,13,20,25,'L','5-2'],[440,3,28,34,40,'L','5-2'],[460,3,13,16,20,'L','5-2'],[460,3,16,28,32,'L','5-2'],
+];
+const volts = [110, 200, 230, 380, 400, 440, 460];
+const source: Record<number, string> = {
+  110: 'Isolation transformer 400 V → 110 V 1~',
+  200: 'Auto-transformer 400 V → 200 V',
+  230: 'Auto-transformer 400 V → 230 V',
+  380: 'Auto-transformer 400 V → 380 V',
+  400: 'Straight from the 400 V MDB',
+  440: 'Auto-transformer 400 V → 440 V',
+  460: 'Auto-transformer 400 V → 460 V',
+};
+---
+<section class="sp" data-rows={JSON.stringify(rows)} data-source={JSON.stringify(source)}>
+  <div class="bar">
+    <p class="title">{title}</p>
+    <span class="count"><b>{rows.length}</b> circuits on one stand</span>
+  </div>
+
+  <div class="controls">
+    <div class="ctl">
+      <span class="lab">Voltage</span>
+      <div class="seg" data-key="v" role="radiogroup" aria-label="Voltage">
+        {volts.map((v) => <button type="button" role="radio" data-val={v} aria-checked={v === 230 ? 'true' : 'false'}>{v} V</button>)}
+      </div>
+    </div>
+    <div class="ctl two">
+      <div>
+        <span class="lab">Phase</span>
+        <div class="seg" data-key="ph" role="radiogroup" aria-label="Phase">
+          <button type="button" role="radio" data-val="1" aria-checked="false">1~</button>
+          <button type="button" role="radio" data-val="3" aria-checked="true">3~</button>
+        </div>
+      </div>
+      <div>
+        <span class="lab">Machine</span>
+        <div class="seg" data-key="stack" role="radiogroup" aria-label="Machine">
+          <button type="button" role="radio" data-val="0" aria-checked="false">Single</button>
+          <button type="button" role="radio" data-val="1" aria-checked="true">Stack</button>
+        </div>
+      </div>
+    </div>
+    <label class="ctl">
+      <span class="lab">Full-load amps per unit <output class="fla-out">33</output> A</span>
+      <input class="fla" type="range" min="1" max="145" value="33" aria-label="Full-load amps" />
+    </label>
+  </div>
+
+  <div class="bands" aria-hidden="true">
+    <div class="axis"><span>0 A</span><span>145 A</span></div>
+    <div class="track up"></div>
+    <div class="track lo"></div>
+    <div class="legend"><span class="u">Upper circuits</span><span class="l">Lower circuits (stack only)</span></div>
+  </div>
+
+  <div class="path" aria-live="polite">
+    <div class="node src"><small>Source</small><b class="src-t">—</b></div>
+    <div class="node pick up-pick"><small>Upper circuit</small><b class="tag">—</b><span class="spec">—</span></div>
+    <div class="node pick lo-pick"><small>Lower circuit</small><b class="tag">—</b><span class="spec">—</span></div>
+  </div>
+  <p class="verdict"></p>
+  <p class="note">Bands and plug numbers are the stand's real circuit list. The PLC does the same lookup from the model data SCADA returns; when nothing matches, the step machine stops with a model-data alarm.</p>
+</section>
+
+<script>
+  type Row = [number, number, number, number, number, 'U' | 'L', string];
+  document.querySelectorAll<HTMLElement>('.sp').forEach((box) => {
+    const rows: Row[] = JSON.parse(box.dataset.rows!);
+    const source: Record<string, string> = JSON.parse(box.dataset.source!);
+    const st = { v: 230, ph: 3, stack: 1, fla: 33 };
+    const fla = box.querySelector<HTMLInputElement>('.fla')!;
+    const out = box.querySelector('.fla-out')!;
+    const up = box.querySelector<HTMLElement>('.track.up')!;
+    const lo = box.querySelector<HTMLElement>('.track.lo')!;
+    const MAX = 145;
+    const inBand = (r: Row, a: number) => (r[2] === 1 ? a >= 1 : a > r[2]) && a <= r[3];
+    const tag = (r: Row) => `TU08${r[0]}${r[1]}${String(r[3]).padStart(3, '0')}${r[5]}`;
+
+    function seg(sel: string, val: number) {
+      box.querySelectorAll<HTMLButtonElement>(`[data-key="${sel}"] button`).forEach((b) => b.setAttribute('aria-checked', String(Number(b.dataset.val) === val)));
+    }
+
+    function draw() {
+      // 110 V exists only as single phase on this stand; 380–460 V only as three phase.
+      const phases = [...new Set(rows.filter((r) => r[0] === st.v).map((r) => r[1]))];
+      if (!phases.includes(st.ph)) st.ph = phases[0];
+      box.querySelectorAll<HTMLButtonElement>('[data-key="ph"] button').forEach((b) => (b.disabled = !phases.includes(Number(b.dataset.val))));
+      seg('v', st.v); seg('ph', st.ph); seg('stack', st.stack);
+      out.textContent = String(st.fla);
+
+      const mine = rows.filter((r) => r[0] === st.v && r[1] === st.ph);
+      const paint = (el: HTMLElement, pos: 'U' | 'L') => {
+        el.innerHTML = mine.filter((r) => r[5] === pos).map((r) => {
+          const hit = inBand(r, st.fla) && (pos === 'U' || st.stack === 1);
+          return `<i class="${hit ? 'hit' : ''}" style="left:${(r[2] / MAX) * 100}%;width:${((r[3] - r[2]) / MAX) * 100}%" title="${r[2]}–${r[3]} A · MCB ${r[4]} A"><em>${r[4]}A</em></i>`;
+        }).join('') + `<b class="cur" style="left:${(st.fla / MAX) * 100}%"></b>`;
+      };
+      paint(up, 'U'); paint(lo, 'L');
+      box.classList.toggle('single', st.stack === 0);
+
+      const u = mine.find((r) => r[5] === 'U' && inBand(r, st.fla));
+      const l = st.stack ? mine.find((r) => r[5] === 'L' && inBand(r, st.fla)) : undefined;
+      box.querySelector('.src-t')!.textContent = source[st.v];
+      const fill = (sel: string, r: Row | undefined, needed: boolean) => {
+        const n = box.querySelector<HTMLElement>(sel)!;
+        n.dataset.state = !needed ? 'off' : r ? 'ok' : 'bad';
+        n.querySelector('.tag')!.textContent = !needed ? 'not used' : r ? tag(r) : 'no circuit';
+        n.querySelector('.spec')!.textContent = !needed ? 'Single machine' : r ? `MCB ${r[4]} A · contactor · PLUG ${r[6]}` : `${st.v} V ${st.ph}~ ${st.fla} A`;
+      };
+      fill('.up-pick', u, true);
+      fill('.lo-pick', l, st.stack === 1);
+      const ok = !!u && (!st.stack || !!l);
+      box.dataset.ok = String(ok);
+      box.querySelector('.verdict')!.textContent = ok
+        ? `Ready: energise ${st.stack ? 'both units' : 'the unit'} through ${st.stack ? 'two circuits' : 'one circuit'} — the operator only connects the plug${st.stack ? 's' : ''} the screen names.`
+        : `Stop: no ${!u ? 'upper' : 'lower'} circuit fits ${st.v} V ${st.ph}~ ${st.fla} A. The stand raises a model-data alarm instead of guessing.`;
+    }
+
+    box.querySelectorAll<HTMLElement>('.seg').forEach((g) =>
+      g.addEventListener('click', (e) => {
+        const b = (e.target as HTMLElement).closest('button');
+        if (!b || b.disabled) return;
+        (st as any)[g.dataset.key!] = Number(b.dataset.val);
+        draw();
+      }),
+    );
+    fla.addEventListener('input', () => { st.fla = Number(fla.value); draw(); });
+    draw();
+  });
+</script>
+
+<style>
+  .sp { margin: 2rem 0; padding: 1.2rem 1.3rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); }
+  .bar { display: flex; justify-content: space-between; align-items: baseline; gap: 0.4rem 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .title { margin: 0; font-weight: 700; }
+  .count { font: 0.8rem var(--mono); color: var(--muted); }
+  .count b { color: var(--accent); font-size: 1rem; }
+  .controls { display: grid; gap: 0.8rem; }
+  .ctl { display: grid; gap: 0.35rem; }
+  .ctl.two { grid-template-columns: repeat(2, minmax(0, max-content)); gap: 1.2rem; }
+  .ctl.two > div { display: grid; gap: 0.35rem; }
+  .lab { font-size: 0.8rem; color: var(--muted); }
+  .lab output { font: 700 1rem var(--mono); color: var(--accent); }
+  .seg { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 18px; background: var(--chip); width: fit-content; }
+  .seg button { border: 0; background: none; padding: 0.32rem 0.75rem; border-radius: 999px; font: 600 0.8rem var(--mono); color: var(--muted); cursor: pointer; }
+  .seg button[aria-checked='true'] { background: var(--accent); color: var(--surface); }
+  .seg button:disabled { opacity: 0.35; cursor: not-allowed; }
+  .fla { width: 100%; accent-color: var(--accent); }
+
+  .bands { margin: 1.1rem 0 0.4rem; display: grid; gap: 6px; }
+  .axis { display: flex; justify-content: space-between; font: 0.68rem var(--mono); color: var(--muted); }
+  .track { position: relative; height: 30px; border-radius: 8px; background: var(--chip); overflow: hidden; }
+  .track :global(i) { position: absolute; top: 3px; bottom: 3px; border-radius: 5px; border: 1px solid var(--line); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); display: grid; place-items: center; overflow: hidden; }
+  .track.lo :global(i) { background: color-mix(in srgb, #a855f7 12%, var(--surface)); }
+  .track :global(i em) { font: 600 0.62rem var(--mono); font-style: normal; color: var(--muted); white-space: nowrap; }
+  .track :global(i.hit) { background: var(--accent); border-color: var(--accent); }
+  .track.lo :global(i.hit) { background: #a855f7; border-color: #a855f7; }
+  .track :global(i.hit em) { color: #fff; }
+  .track :global(.cur) { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #ef4444; }
+  .sp.single .track.lo { opacity: 0.35; }
+  .legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.74rem; color: var(--muted); }
+  .legend span::before { content: ''; display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 3px; margin-right: 0.35rem; vertical-align: -0.1rem; background: var(--accent); }
+  .legend .l::before { background: #a855f7; }
+
+  .path { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 0.5rem; margin-top: 0.9rem; }
+  .node { display: grid; gap: 0.15rem; align-content: start; padding: 0.65rem 0.8rem; border: 1px solid var(--line); border-radius: 14px; min-width: 0; }
+  .node small { font-size: 0.72rem; color: var(--muted); }
+  .node b { font: 700 0.86rem var(--mono); overflow-wrap: anywhere; }
+  .node .spec { font: 0.76rem var(--mono); color: var(--muted); }
+  .node.src { background: #0f172a; border-color: #0f172a; color: #e2e8f0; }
+  .node.src small { color: #94a3b8; }
+  .node.src b { font: 600 0.82rem/1.35 var(--font); }
+  .node[data-state='ok'] { border-color: color-mix(in srgb, #22c55e 55%, var(--line)); background: color-mix(in srgb, #22c55e 6%, var(--surface)); }
+  .node[data-state='ok'] b { color: #15803d; }
+  .node[data-state='bad'] { border-color: color-mix(in srgb, #ef4444 55%, var(--line)); background: color-mix(in srgb, #ef4444 7%, var(--surface)); }
+  .node[data-state='bad'] b { color: #dc2626; }
+  .node[data-state='off'] { opacity: 0.45; border-style: dashed; }
+  .verdict { margin: 0.8rem 0 0; font-weight: 600; font-size: 0.92rem; }
+  .sp[data-ok='false'] .verdict { color: #dc2626; }
+  .note { margin: 0.4rem 0 0; font-size: 0.75rem; color: var(--muted); }
+  @media (max-width: 640px) {
+    .path { grid-template-columns: 1fr; }
+    .ctl.two { grid-template-columns: 1fr; }
+  }
+</style>
