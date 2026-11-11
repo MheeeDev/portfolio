@@ -1,0 +1,105 @@
+---
+title: PLC-to-PLC Data Exchange — S7-1200 with S7-300 and S7-400 over PUT/GET
+summary: A new S7-1200 that runs a dairy plant's ventilation — one blower on a VFD and 11 air valves — reading production status from an S7-300 and an S7-400 with GET and writing back with PUT. Program and HMI written new.
+company: P.A.M Engineering & Automation
+period: { start: 2024-10, end: 2024-11 } # TODO: confirm the start month; the HMI test video is dated 1 Nov 2024
+role: Project engineer — S7-1200 program and HMI written from scratch, PUT/GET link to the plant's S7-300 and S7-400, on-site testing and air balancing
+sector: Dairy — food production
+platforms: [Siemens S7-1200, CP 1243-1, Siemens S7-300, Siemens S7-400, SIMATIC HMI TP700 Comfort, TIA Portal, S7 communication (PUT/GET), SCALANCE XB005]
+tags: [PLC, HMI, Integration, PUT/GET, Commissioning]
+cover: ./cover.webp
+coverAlt: Cover — GET. PUT. Fresh air. A drawn unbranded milk carton, S7-300, S7-400 and S7-1200 controllers with GET and PUT arrows between them, an air valve with an electric actuator, and a redesigned HMI screen showing the blower at 50 Hz and valves F1 to F11.
+highlights:
+  - The S7-1200 is the PUT/GET client of two older CPUs, so the production PLCs needed only a data block, not new communication code
+  - One shared 20-byte layout at fixed offsets on every side, with one owner per byte range
+  - Four jobs in a round robin with a heartbeat watchdog, because a GET can finish while the partner CPU sits in STOP
+  - Seven HMI screens designed in-house on a TP700 Comfort, from plant overview to network diagnostics
+  - Valve openings balanced on site with air-velocity readings and kept as parameters, not code
+track: industry
+---
+
+import PutGetLink from '../../../components/mdx/PutGetLink.astro';
+
+## Problem
+
+A dairy plant's production rooms are warm and wet from washing and steam. Without moving air,
+condensation forms on the ceiling and drips back down — a hygiene problem. The plant added a
+ventilation system: one blower on a VFD feeding a duct header with **11 motorised air valves (F1–F11)**.
+
+The ventilation had to follow what production was doing — running, cleaning in place (CIP) or needing
+full airflow — and that knowledge lived in an **S7-300** and an **S7-400** already running the lines.
+Hardwiring status between panels in a hygienic area is slow and leaves no room to grow.
+
+## My role & scope
+
+I was the project engineer and wrote everything new:
+
+- **S7-1200 program** — blower speed and start/stop, valve positions, NORMAL and FULL modes, off-delays, alarms
+- **PUT/GET link** — the S7-1200, through its CP 1243-1, reads from and writes to both production CPUs
+- **HMI** — seven screens designed in-house on a TP700 Comfort
+- **Site work** — testing with both production CPUs running, and balancing airflow at each valve
+
+## Approach
+
+### The new controller asks, the old ones only answer
+
+With PUT/GET the **client** does all the work. The S7-1200 runs GET and PUT; the S7-300 and S7-400
+answer from their operating systems. On their side the plant only needed a data block and a few
+networks that write a heartbeat and status into it — the running production programs were barely touched.
+
+### Two networks, one gateway
+
+The plant network with the S7-300 and S7-400 comes in on the **CP 1243-1**. The S7-1200's own port
+and the HMI sit on a separate machine network behind a SCALANCE XB005. The plant side cannot see the HMI,
+and only the agreed data block crosses — which matters, because PUT/GET has no authentication.
+
+### One layout, one owner per byte
+
+Each partner has a 20-byte `DB100` at fixed offsets, mirrored in a standard-access DB on the S7-1200.
+Bytes 0–7 are written by the partner (heartbeat, run / CIP / request-full bits, demand). Bytes 8–19 are
+written by the S7-1200 (heartbeat, blower running and Hz, valve bits F1–F11, alarm word). No byte has
+two writers, so values never fight.
+
+### One job at a time, and trust the heartbeat
+
+Four jobs run in turn: GET S7-300, PUT S7-300, GET S7-400, PUT S7-400. Each job's `REQ` is true only on
+its turn, which gives a clean rising edge each round with no clock pulses. A finished GET is not proof of
+life — a CPU in STOP still answers with stale data — so each partner's heartbeat must change within three
+reads, or the zone holds NORMAL airflow and an alarm is raised. The last `STATUS` of every job is shown on
+the HMI's network page.
+
+Below is a working model of that link, rebuilt for this write-up. The original program files are lost,
+so the DB numbers and offsets show the method; the blower, valve openings and off-delays are from the real HMI.
+
+<PutGetLink />
+
+### Air balanced on site
+
+The ducts to F1–F11 differ in length and bends, so the valves near the blower would take most of the air
+if all opened fully. Openings were set valve by valve from air-velocity readings on site — 100 % at F1
+down to 45 % at F4 — and kept on the HMI's parameter page. On stop, the blower runs on for 30 s and the
+valves close after 60 s, so the blower never pushes against closed valves.
+
+## Delivery
+
+- S7-1200 program and PUT/GET link in TIA Portal, with standard-access interface DBs
+- Seven HMI screens: Home, Overview (room layout with duct and valves), Manual, Auto (NORMAL / FULL),
+  Alarm, Parameter and Network
+- Site testing with both production CPUs running, and valve-by-valve air balancing
+
+## Result
+
+- Ventilation follows production state from two older CPUs with no added hardwired signals
+- New signals fit into the spare bytes of the shared layout without moving any offset
+- A lost partner or a stopped CPU shows as an alarm with a status code, not as quiet wrong behaviour
+
+The full story in Thai — PUT/GET explained down to the byte, the SCL round robin, TIA Portal settings and
+the lessons from losing the project files — is in the
+[blog article](/blog/put-get-s7-1200-s7-300-s7-400-dairy-ventilation/).
+
+## Skills used
+
+- **PLC:** S7-1200 with CP 1243-1, S7-300 and S7-400 data blocks, SCL, S7 connections, PUT/GET status handling
+- **HMI:** TP700 Comfort, screen design from overview to diagnostics, alarms and parameter pages
+- **Commissioning:** testing beside running production, air-velocity balancing, hygienic-area work
+- **Networks:** plant and machine network separation, SCALANCE XB005

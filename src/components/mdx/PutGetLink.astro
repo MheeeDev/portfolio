@@ -1,0 +1,631 @@
+---
+// The dairy-plant ventilation link as a modern HMI: an S7-1200 (through its CP 1243-1) is the PUT/GET
+// client of an S7-300 and an S7-400. It runs four jobs in turn — GET then PUT to each partner — and the
+// bytes of each partner's DB100 are shown next to the S7-1200's copy, so you can watch them move.
+// The original program files are lost: DB numbers, offsets and the control rules are a rewrite that
+// shows the method. Blower 50 Hz, 11 valves F1–F11, their FULL openings and the 30 s / 60 s off-delays
+// are from the real HMI.
+interface Props { title?: string }
+const { title = 'S7-1200 ↔ S7-300 / S7-400 over PUT/GET, one job at a time' } = Astro.props;
+const fields = [
+  { o: 0, n: 2, t: 'HB', own: 'p' }, { o: 2, n: 1, t: 'ST', own: 'p' }, { o: 3, n: 1, t: '·', own: 'p' },
+  { o: 4, n: 2, t: 'DEM %', own: 'p' }, { o: 6, n: 2, t: '·', own: 'p' },
+  { o: 8, n: 2, t: 'HB', own: 'c' }, { o: 10, n: 1, t: 'VS', own: 'c' }, { o: 11, n: 1, t: '·', own: 'c' },
+  { o: 12, n: 4, t: 'BLOWER Hz · REAL', own: 'c' }, { o: 16, n: 2, t: 'VALVES', own: 'c' }, { o: 18, n: 2, t: 'ALARMS', own: 'c' },
+];
+const cells = Array.from({ length: 20 }, (_, i) => i);
+const valves = Array.from({ length: 11 }, (_, i) => `F${i + 1}`);
+const partners = [
+  { k: 'a', name: 'S7-300', area: 'Process area A' },
+  { k: 'b', name: 'S7-400', area: 'Process area B' },
+];
+const faults = [
+  ['cable', 'Pull the S7-400 cable'],
+  ['stop', 'S7-300 CPU to STOP'],
+  ['len', 'RD_1 too short (6 B for 8 B)'],
+];
+---
+<section class="pg" data-tower="g">
+  <div class="bar">
+    <p class="title">{title}</p>
+    <div class="seg" role="group" aria-label="Speed">
+      <button type="button" data-speed="slow" aria-pressed="true">Slow-mo</button>
+      <button type="button" data-speed="fast" aria-pressed="false">Fast</button>
+    </div>
+  </div>
+
+  <div class="head">
+    <div class="tower" aria-label="Tower light"><i class="g"></i><i class="y"></i><i class="r"></i></div>
+    <div class="state"><small>JOB</small><b class="jobn">1/4</b><span class="jtext">Ready</span></div>
+    <div class="outs" aria-live="off"><span class="o-ok">NDR</span><span class="o-err">ERROR</span><code class="o-st">STATUS 0</code></div>
+    <div class="ctl">
+      <button type="button" class="run">▶ Start</button>
+      <button type="button" class="reset">Reset</button>
+    </div>
+  </div>
+
+  <div class="topo">
+    {partners.map((p, i) => (
+      <Fragment>
+        {i === 1 && <div class="link" data-link="b"><span class="lbl">ID 16#101</span><span class="track"><i class="pkt"></i></span></div>}
+        <article class="plc partner" data-p={p.k} style={`order:${i === 0 ? 0 : 4}`}>
+          <header>
+            <span class:list={['dev', p.k === 'a' ? 'd300' : 'd400']} aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+            <div><b>{p.name}</b><small>{p.area} · server</small></div>
+            <span class="lamp" title="Comm status"></span>
+          </header>
+          <p class="db">DB100 "VENT_IF" · standard access</p>
+          <div class="sig" role="group" aria-label={`${p.name} process signals`}>
+            <button type="button" data-sig="run" aria-pressed="true">Area running</button>
+            <button type="button" data-sig="cip" aria-pressed="false">CIP</button>
+            <button type="button" data-sig="full" aria-pressed="false">Request FULL</button>
+          </div>
+          <p class="mine">Heartbeat <b class="hb">0</b><span class="cpu">RUN</span></p>
+          <p class="got">From S7-1200: <span class="rx">—</span></p>
+        </article>
+        {i === 0 && <div class="link" data-link="a"><span class="lbl">ID 16#100</span><span class="track"><i class="pkt"></i></span></div>}
+      </Fragment>
+    ))}
+    <article class="plc client" style="order:2">
+      <header>
+        <span class="dev d1200" aria-hidden="true"><i></i><i></i></span>
+        <div><b>S7-1200 + CP 1243-1</b><small>Ventilation · client</small></div>
+      </header>
+      <div class="fb">
+        <p class="fbn"><b class="iname">GET</b><small class="inst">"GET_S7300"</small></p>
+        <dl>
+          <dt>REQ</dt><dd class="v-req">FALSE</dd>
+          <dt>ID</dt><dd class="v-id">W#16#100</dd>
+          <dt>ADDR_1</dt><dd class="v-addr">P#DB100.DBX0.0 BYTE 8</dd>
+          <dt class="k-loc">RD_1</dt><dd class="v-loc">P#DB20.DBX0.0 BYTE 8</dd>
+        </dl>
+      </div>
+    </article>
+  </div>
+
+  <div class="bytes">
+    <div class="bhead">
+      <div class="seg" role="group" aria-label="Which partner">
+        <button type="button" data-view="a" aria-pressed="true">S7-300 side</button>
+        <button type="button" data-view="b" aria-pressed="false">S7-400 side</button>
+      </div>
+      <p class="legend"><span class="lp">GET · partner writes, S7-1200 reads</span><span class="lc">PUT · S7-1200 writes into the partner</span></p>
+    </div>
+    <div class="scroll">
+      <div class="grid">
+        <span class="rn"></span>
+        {fields.map((f) => <span class:list={['fl', f.own]} style={`grid-column:${f.o + 2} / span ${f.n}`}>{f.t}</span>)}
+        <span class="rn"><b class="pname">S7-300</b> DB100</span>
+        {cells.map((c) => <span class:list={['cell', 'pc', c < 8 ? 'p' : 'c']} data-i={c}>00</span>)}
+        <span class="rn"><b>S7-1200</b> <span class="ldb">DB20</span></span>
+        {cells.map((c) => <span class:list={['cell', 'lc', c < 8 ? 'p' : 'c']} data-i={c}>00</span>)}
+        <span class="rn off">offset</span>
+        {cells.map((c) => <span class="off">{c}</span>)}
+      </div>
+    </div>
+    <dl class="decode"></dl>
+  </div>
+
+  <div class="vent">
+    <div class="blower">
+      <span class="fan" aria-hidden="true"></span>
+      <div><small>BLOWER · VFD</small><b class="hz">0.0 Hz</b><span class="pct">0 %</span></div>
+      <span class="bmsg"></span>
+    </div>
+    <div class="zones">
+      {partners.map((p) => (
+        <div class="zone" data-z={p.k}>
+          <p>Zone {p.k.toUpperCase()} · via {p.name} <span class="zm">IDLE</span></p>
+          <ul>
+            {valves.filter((_, i) => (p.k === 'a' ? i < 5 : i >= 5)).map((v) => (
+              <li data-v={v}><span class="act" aria-hidden="true"></span><b>{v}</b><span class="vb"><i></i></span><em>0 %</em></li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  </div>
+
+  <div class="lower">
+    <div class="faults" role="group" aria-label="Inject a fault">
+      <span>Inject a fault</span>
+      {faults.map(([k, t]) => <button type="button" data-fault={k} aria-pressed="false">{t}</button>)}
+    </div>
+    <ol class="log" aria-live="polite"></ol>
+  </div>
+  <p class="note">Rebuilt for this write-up: the original program files are lost, so the DB numbers, byte offsets, heartbeat rule and zone logic show the method, not the plant's exact addresses. Blower 50 Hz, valves F1–F11 with their FULL openings, the 30 s / 60 s off-delays and the alarm texts are from the real HMI. Off-delays run ×10 here.</p>
+</section>
+
+<script>
+  type P = 'a' | 'b';
+  type Job = { k: 'GET' | 'PUT'; p: P };
+  const NAME: Record<P, string> = { a: 'S7-300', b: 'S7-400' };
+  const LDB: Record<P, number> = { a: 20, b: 21 };
+  const FULL = [100, 100, 66, 45, 58, 54, 54, 55, 60, 60, 67]; // % open in FULL mode, from the HMI
+  const NORMAL_V = 50; // % open in NORMAL mode (illustrative)
+  const ZONE: Record<P, number[]> = { a: [0, 1, 2, 3, 4], b: [5, 6, 7, 8, 9, 10] };
+  const JOBS: Job[] = [{ k: 'GET', p: 'a' }, { k: 'PUT', p: 'a' }, { k: 'GET', p: 'b' }, { k: 'PUT', p: 'b' }];
+  const OFF_BLOWER = 30, OFF_VALVE = 60, SIM = 10; // seconds from the HMI, run ×10
+
+  document.querySelectorAll<HTMLElement>('.pg').forEach((box) => {
+    const q = <T extends Element = HTMLElement>(s: string, r: ParentNode = box) => r.querySelector<T>(s)!;
+    const qa = <T extends Element = HTMLElement>(s: string, r: ParentNode = box) => [...r.querySelectorAll<T>(s)];
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const vertical = matchMedia('(max-width: 760px)');
+    const t0 = Date.now();
+
+    const sig: Record<P, { run: boolean; cip: boolean; full: boolean }> = { a: { run: true, cip: false, full: false }, b: { run: true, cip: false, full: false } };
+    const mem: Record<P, Uint8Array> = { a: new Uint8Array(20), b: new Uint8Array(20) }; // partner DB100
+    const loc: Record<P, Uint8Array> = { a: new Uint8Array(20), b: new Uint8Array(20) }; // S7-1200 DB20 / DB21
+    const hb: Record<P, number> = { a: 1200, b: 3400 };
+    const comm: Record<P, { ok: boolean; last: number; stale: number }> = { a: { ok: true, last: -1, stale: 0 }, b: { ok: true, last: -1, stale: 0 } };
+    const fault = { cable: false, stop: false, len: false };
+    const vent = { pct: 0, valves: Array(11).fill(0) as number[], mode: { a: 'IDLE', b: 'IDLE' } as Record<P, string>, idleSince: 0, alarms: 0 };
+    let hb1200 = 0;
+    let view: P = 'a';
+    let speed: 'slow' | 'fast' = 'slow';
+    let running = false;
+    let gen = 0;
+    let job = 0;
+
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, calm ? Math.min(ms, 60) : ms));
+    const leg = () => (speed === 'slow' ? 560 : 70);
+    const gap = () => (speed === 'slow' ? 260 : 30);
+    const hex = (n: number) => n.toString(16).toUpperCase().padStart(2, '0');
+    const dv = (u: Uint8Array) => new DataView(u.buffer);
+
+    function stamp() {
+      const s = Math.floor((Date.now() - t0) / 1000);
+      return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+    }
+    function write(html: string, kind = '', force = false) {
+      if (speed === 'fast' && !kind && !force) return;
+      const log = q('.log');
+      const li = document.createElement('li');
+      li.className = kind;
+      li.innerHTML = `<time>${stamp()}</time>${html}`;
+      log.prepend(li);
+      while (log.children.length > 7) log.lastElementChild!.remove();
+    }
+
+    // ---- partner program: fills its own bytes 0..7 every scan (unless the CPU is in STOP) ----
+    function partnerScan(p: P) {
+      if (p === 'a' && fault.stop) return;
+      hb[p] = (hb[p] + 1 + Math.floor(Math.random() * 6)) & 0x7fff;
+      const d = dv(mem[p]);
+      d.setInt16(0, hb[p]);
+      const s = sig[p];
+      mem[p][2] = (s.run ? 1 : 0) | (s.cip ? 2 : 0) | (s.full ? 4 : 0) | 8; // .3 = E-stop healthy
+      d.setInt16(4, s.full ? 100 : s.run || s.cip ? 60 : 0);
+    }
+
+    // ---- S7-1200 program: builds the PUT area for one partner ----
+    function buildPut(p: P) {
+      const d = dv(loc[p]);
+      hb1200 = (hb1200 + 1) & 0x7fff;
+      d.setInt16(8, hb1200);
+      const anyFull = vent.mode.a === 'FULL' || vent.mode.b === 'FULL';
+      loc[p][10] = (vent.pct > 0 ? 1 : 0) | (anyFull ? 2 : 0) | (vent.alarms ? 4 : 0) | (comm[p].ok ? 8 : 0);
+      d.setFloat32(12, (vent.pct / 100) * 50);
+      let w = 0;
+      vent.valves.forEach((v, i) => { if (v > 0) w |= 1 << i; });
+      d.setUint16(16, w);
+      d.setUint16(18, vent.alarms);
+    }
+
+    // ---- watchdog: a GET that is DONE but carries the same heartbeat is not a live partner ----
+    function watchdog(p: P, good: boolean) {
+      const c = comm[p];
+      const now = dv(loc[p]).getInt16(0);
+      if (good && now !== c.last) { c.stale = 0; c.last = now; } else c.stale++;
+      const ok = c.stale < 3;
+      if (ok !== c.ok) {
+        c.ok = ok;
+        if (!ok) write(`<b>ALARM</b> Comm ${NAME[p]} lost · no new heartbeat in 3 reads → zone ${p.toUpperCase()} holds NORMAL`, 'err', true);
+        else write(`Comm ${NAME[p]} OK · heartbeat moving again`, 'ok', true);
+      }
+    }
+
+    // ---- ventilation logic on the S7-1200 ----
+    function control() {
+      (['a', 'b'] as P[]).forEach((p) => {
+        const st = loc[p][2];
+        vent.mode[p] = !comm[p].ok ? 'HOLD' : st & 4 ? 'FULL' : st & 3 ? 'NORMAL' : 'IDLE';
+      });
+      const m = Object.values(vent.mode);
+      const allIdle = m.every((x) => x === 'IDLE');
+      const now = performance.now();
+      if (!allIdle) vent.idleSince = 0;
+      else if (!vent.idleSince) vent.idleSince = now;
+      const idleS = vent.idleSince ? ((now - vent.idleSince) / 1000) * SIM : 0;
+      vent.pct = m.includes('FULL') ? 100 : !allIdle ? 70 : idleS < OFF_BLOWER && vent.pct > 0 ? vent.pct : 0;
+      (['a', 'b'] as P[]).forEach((p) => ZONE[p].forEach((i) => {
+        const md = vent.mode[p];
+        vent.valves[i] = md === 'FULL' ? FULL[i] : md === 'NORMAL' || md === 'HOLD' ? NORMAL_V : allIdle && idleS < OFF_VALVE ? vent.valves[i] : 0;
+      }));
+      const hz = (vent.pct / 100) * 50;
+      vent.alarms = (vent.pct > 0 && hz <= 30 ? 2 : 0) | (comm.a.ok ? 0 : 4) | (comm.b.ok ? 0 : 8);
+      const bm = q('.bmsg');
+      if (allIdle && vent.pct > 0) bm.textContent = `Time off blower · ${Math.max(0, Math.ceil(OFF_BLOWER - idleS))} s`;
+      else if (allIdle && vent.valves.some((v) => v > 0)) bm.textContent = `Time off valve · ${Math.max(0, Math.ceil(OFF_VALVE - idleS))} s`;
+      else bm.textContent = vent.pct === 100 ? 'FULL mode' : vent.pct ? 'NORMAL mode' : 'Stopped';
+    }
+
+    // ---- drawing ----
+    function paintBytes(flash?: { row: 'pc' | 'lc'; from: number; to: number }) {
+      const p = view;
+      q('.pname').textContent = NAME[p];
+      q('.ldb').textContent = `DB${LDB[p]}`;
+      qa('.cell.pc').forEach((c, i) => (c.textContent = hex(mem[p][i])));
+      qa('.cell.lc').forEach((c, i) => (c.textContent = hex(loc[p][i])));
+      if (flash) {
+        qa(`.cell.${flash.row}`).slice(flash.from, flash.to).forEach((c) => {
+          c.classList.remove('hit'); void c.offsetWidth; c.classList.add('hit');
+        });
+      }
+      const L = dv(loc[p]), M = dv(mem[p]);
+      const st = loc[p][2];
+      const bits = (n: number, len: number) => n.toString(2).padStart(len, '0').replace(/\B(?=(\d{4})+$)/g, '_');
+      q('.decode').innerHTML = [
+        ['DBW0', `Heartbeat ${NAME[p]}`, L.getInt16(0)],
+        ['DBX2.0–.2', 'run · cip · full', `${st & 1} · ${(st >> 1) & 1} · ${(st >> 2) & 1}`],
+        ['DBW4', 'Demand', `${L.getInt16(4)} %`],
+        ['DBW8', 'Heartbeat S7-1200', M.getInt16(8)],
+        ['DBD12', 'Blower', `${M.getFloat32(12).toFixed(1)} Hz`],
+        ['DBW16', 'Valves F11…F1', bits(M.getUint16(16) & 0x7ff, 11)],
+        ['DBW18', 'Alarms', bits(M.getUint16(18) & 0xf, 4)],
+      ].map(([a, n, v]) => `<div><dt><code>${a}</code> ${n}</dt><dd>${v}</dd></div>`).join('');
+    }
+
+    function paintPlant() {
+      (['a', 'b'] as P[]).forEach((p) => {
+        const card = q(`.partner[data-p="${p}"]`);
+        q('.hb', card).textContent = String(hb[p]);
+        card.classList.toggle('lost', !comm[p].ok);
+        q('.cpu', card).textContent = p === 'a' && fault.stop ? 'STOP' : 'RUN';
+        card.classList.toggle('stop', p === 'a' && fault.stop);
+        const M = dv(mem[p]);
+        const open = ZONE[p].filter((i) => (M.getUint16(16) >> i) & 1).length;
+        q('.rx', card).textContent = M.getInt16(8) ? `blower ${M.getFloat32(12).toFixed(1)} Hz · ${open}/${ZONE[p].length} valves open` : '—';
+        const z = q(`.zone[data-z="${p}"]`);
+        const zm = q('.zm', z);
+        zm.textContent = vent.mode[p];
+        zm.dataset.m = vent.mode[p];
+      });
+      const hz = (vent.pct / 100) * 50;
+      q('.hz').textContent = `${hz.toFixed(1)} Hz`;
+      q('.pct').textContent = `${vent.pct} %`;
+      const fan = q('.fan');
+      fan.classList.toggle('on', vent.pct > 0);
+      fan.style.animationDuration = vent.pct ? `${(1.6 * 50) / Math.max(hz, 1) / 2}s` : '';
+      qa<HTMLLIElement>('.zone li').forEach((li, i) => {
+        const v = vent.valves[i];
+        q('i', li).style.width = `${v}%`;
+        q('em', li).textContent = `${v} %`;
+        li.classList.toggle('open', v > 0);
+      });
+      box.dataset.tower = vent.alarms & 0xc ? 'r' : running ? 'g' : 'y';
+    }
+
+    function pins(j: Job, req: boolean, ok?: boolean, err?: boolean, st = 0) {
+      const p = j.p;
+      q('.iname').textContent = j.k;
+      q('.inst').textContent = `"${j.k}_${NAME[p].replace('-', '')}"`;
+      q('.v-req').textContent = req ? 'TRUE ↑' : 'FALSE';
+      q('.v-req').classList.toggle('hi', req);
+      q('.v-id').textContent = p === 'a' ? 'W#16#100' : 'W#16#101';
+      q('.v-addr').textContent = j.k === 'GET' ? 'P#DB100.DBX0.0 BYTE 8' : 'P#DB100.DBX8.0 BYTE 12';
+      q('.k-loc').textContent = j.k === 'GET' ? 'RD_1' : 'SD_1';
+      const short = j.k === 'GET' && p === 'a' && fault.len;
+      q('.v-loc').textContent = j.k === 'GET' ? `P#DB${LDB[p]}.DBX0.0 BYTE ${short ? 6 : 8}` : `P#DB${LDB[p]}.DBX8.0 BYTE 12`;
+      q('.v-loc').classList.toggle('bad', short);
+      q('.o-ok').textContent = j.k === 'GET' ? 'NDR' : 'DONE';
+      q('.o-ok').classList.toggle('on', !!ok);
+      q('.o-err').classList.toggle('on', !!err);
+      q('.o-st').textContent = `STATUS ${st}`;
+      q('.o-st').classList.toggle('bad', !!err);
+      q('.jobn').textContent = `${JOBS.indexOf(j) + 1}/4`;
+      q('.jtext').textContent = j.k === 'GET' ? `GET ← ${NAME[p]} · read 8 B` : `PUT → ${NAME[p]} · write 12 B`;
+      qa('.link').forEach((l) => l.classList.toggle('busy', l.dataset.link === p && req));
+    }
+
+    // Packet along the link. dir 'out' = S7-1200 → partner.
+    function packet(p: P, dir: 'out' | 'back', label: string, kind: 'data' | 'req' | 'lost') {
+      const link = q(`.link[data-link="${p}"]`);
+      const dot = q('.pkt', link);
+      dot.className = `pkt ${kind}`;
+      dot.textContent = label;
+      const toEnd = (p === 'b') === (dir === 'out'); // b sits after the client, a before it
+      const prop = vertical.matches ? 'top' : 'left';
+      const a = '0%', b = `calc(100% - ${vertical.matches ? 20 : 44}px)`;
+      const frames = kind === 'lost'
+        ? [{ [prop]: toEnd ? a : b, opacity: 1 }, { [prop]: '45%', opacity: 1, offset: 0.7 }, { [prop]: '50%', opacity: 0 }]
+        : [{ [prop]: toEnd ? a : b, opacity: 1 }, { [prop]: toEnd ? b : a, opacity: 1 }];
+      dot.style.left = dot.style.top = '';
+      const anim = dot.animate(frames as Keyframe[], { duration: calm ? 1 : leg(), easing: 'ease-in-out', fill: 'forwards' });
+      return anim.finished.catch(() => {});
+    }
+
+    async function runJob(j: Job, my: number) {
+      const { k, p } = j;
+      partnerScan('a'); partnerScan('b');
+      if (k === 'PUT') { control(); buildPut(p); }
+      pins(j, true);
+      if (view === p && k === 'PUT') paintBytes();
+      // request leg
+      if (fault.cable && p === 'b') {
+        await packet(p, 'out', k === 'PUT' ? '12 B' : 'req', 'lost');
+        if (my !== gen) return;
+        await sleep(speed === 'slow' ? 700 : 120);
+        if (my !== gen) return;
+        pins(j, false, false, true, 1);
+        write(`${k} ${NAME[p]} · <b>ERROR · STATUS 1</b> · no connection (cable, CPU off or CP in STOP)`, 'err', true);
+        if (k === 'GET') watchdog(p, false);
+        return;
+      }
+      await packet(p, 'out', k === 'PUT' ? '12 B' : 'req', k === 'PUT' ? 'data' : 'req');
+      if (my !== gen) return;
+      if (k === 'PUT') {
+        mem[p].set(loc[p].subarray(8, 20), 8);
+        if (view === p) paintBytes({ row: 'pc', from: 8, to: 20 });
+      }
+      await packet(p, 'back', k === 'GET' ? '8 B' : 'ack', k === 'GET' ? 'data' : 'req');
+      if (my !== gen) return;
+      if (k === 'GET') {
+        if (p === 'a' && fault.len) {
+          pins(j, false, false, true, 4);
+          write('GET S7-300 · <b>ERROR · STATUS 4</b> · RD_1 is 6 B, ADDR_1 sends 8 B → length mismatch, nothing copied', 'err', true);
+          watchdog(p, false);
+          return;
+        }
+        loc[p].set(mem[p].subarray(0, 8), 0);
+        if (view === p) paintBytes({ row: 'lc', from: 0, to: 8 });
+        watchdog(p, true);
+        control();
+        const st = loc[p][2];
+        pins(j, false, true, false, 0);
+        write(`GET ${NAME[p]} · NDR · HB ${dv(loc[p]).getInt16(0)} · run ${st & 1} cip ${(st >> 1) & 1} full ${(st >> 2) & 1}`);
+      } else {
+        pins(j, false, true, false, 0);
+        write(`PUT ${NAME[p]} · DONE · ${(dv(loc[p]).getFloat32(12)).toFixed(1)} Hz, valves ${(dv(loc[p]).getUint16(16) & 0x7ff).toString(2).padStart(11, '0')}`);
+      }
+    }
+
+    async function loop(my: number) {
+      while (running && my === gen) {
+        await runJob(JOBS[job], my);
+        if (my !== gen) return;
+        paintPlant();
+        if (view === JOBS[job].p) paintBytes();
+        job = (job + 1) % JOBS.length;
+        await sleep(gap());
+      }
+    }
+
+    function start() {
+      running = !running;
+      gen++;
+      q('.run').textContent = running ? '❚❚ Pause' : '▶ Start';
+      paintPlant();
+      if (running) loop(gen);
+    }
+
+    function reset() {
+      const was = running;
+      running = false;
+      gen++;
+      fault.cable = fault.stop = fault.len = false;
+      qa('[data-fault]').forEach((b) => b.setAttribute('aria-pressed', 'false'));
+      write('Faults cleared · comm recovers after the next good reads', 'ok', true);
+      q('.run').textContent = '▶ Start';
+      paintPlant();
+      if (was) start();
+    }
+
+    // ---- wiring ----
+    q('.run').addEventListener('click', start);
+    q('.reset').addEventListener('click', reset);
+    qa<HTMLButtonElement>('[data-speed]').forEach((b) => b.addEventListener('click', () => {
+      speed = b.dataset.speed as 'slow' | 'fast';
+      qa('[data-speed]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      write(speed === 'fast' ? 'Fast · only errors and state changes are logged' : 'Slow-mo · every job is logged', '', true);
+    }));
+    qa<HTMLButtonElement>('[data-view]').forEach((b) => b.addEventListener('click', () => {
+      view = b.dataset.view as P;
+      qa('[data-view]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      paintBytes();
+    }));
+    qa<HTMLElement>('.partner').forEach((card) => {
+      const p = card.dataset.p as P;
+      qa<HTMLButtonElement>('[data-sig]', card).forEach((b) => b.addEventListener('click', () => {
+        const k = b.dataset.sig as 'run' | 'cip' | 'full';
+        sig[p][k] = !sig[p][k];
+        b.setAttribute('aria-pressed', String(sig[p][k]));
+        write(`${NAME[p]} sets ${b.textContent} = ${sig[p][k] ? 1 : 0} in its DB100 · S7-1200 sees it at the next GET`, 'warn', true);
+      }));
+    });
+    qa<HTMLButtonElement>('[data-fault]').forEach((b) => b.addEventListener('click', () => {
+      const k = b.dataset.fault as keyof typeof fault;
+      fault[k] = !fault[k];
+      b.setAttribute('aria-pressed', String(fault[k]));
+      const msg: Record<string, string> = {
+        cable: 'S7-400 cable pulled · its GET and PUT will fail',
+        stop: 'S7-300 in STOP · it still answers GET, but its heartbeat freezes',
+        len: 'RD_1 for S7-300 cut to 6 bytes',
+      };
+      write(fault[k] ? `Fault armed: ${msg[k]}` : `Fault removed: ${b.textContent}`, 'warn', true);
+      if (!running) start();
+      paintPlant();
+    }));
+
+    // first picture: both partners read once so the bytes are not all zero
+    (['a', 'b'] as P[]).forEach((p) => { partnerScan(p); loc[p].set(mem[p].subarray(0, 8), 0); comm[p].last = dv(loc[p]).getInt16(0); });
+    control();
+    (['a', 'b'] as P[]).forEach((p) => { buildPut(p); mem[p].set(loc[p].subarray(8, 20), 8); });
+    paintBytes();
+    paintPlant();
+    pins(JOBS[0], false);
+    write('S7 connections up · ID 16#100 → S7-300, ID 16#101 → S7-400', 'ok', true);
+    vertical.addEventListener('change', () => qa('.pkt').forEach((d) => d.getAnimations().forEach((a) => a.cancel())));
+
+    // Run while on screen, pause when scrolled away.
+    let auto = !calm;
+    new IntersectionObserver(([e]) => {
+      if (e.isIntersecting && auto && !running) { auto = false; start(); }
+      if (!e.isIntersecting && running) { start(); auto = true; }
+    }, { threshold: 0.25 }).observe(box);
+  });
+</script>
+
+<style>
+  .pg { margin: 2rem 0; padding: 1.2rem 1.3rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); }
+  .bar { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .title { margin: 0; font-weight: 700; }
+  .seg, .sig, .faults { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  button { border: 1px solid var(--line); background: var(--chip); padding: 0.35rem 0.8rem; border-radius: 999px; font: 600 0.78rem var(--mono); color: var(--muted); cursor: pointer; }
+  button[aria-pressed='true'] { color: var(--text); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
+  .faults button[aria-pressed='true'] { border-color: #f59e0b; background: color-mix(in srgb, #f59e0b 14%, var(--surface)); }
+
+  .head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 0.8rem; align-items: center; padding: 0.6rem 0.8rem; border-radius: 14px; background: #0f172a; color: #e2e8f0; }
+  .tower { display: grid; gap: 4px; }
+  .tower i { width: 0.7rem; height: 0.7rem; border-radius: 50%; background: #334155; }
+  .pg[data-tower='g'] .tower .g { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+  .pg[data-tower='y'] .tower .y { background: #facc15; box-shadow: 0 0 8px #facc15; }
+  .pg[data-tower='r'] .tower .r { background: #ef4444; box-shadow: 0 0 8px #ef4444; animation: blink 0.8s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0.3; } }
+  .state { display: flex; align-items: baseline; gap: 0.6rem; min-width: 0; }
+  .state small { font: 600 0.68rem var(--mono); color: #94a3b8; }
+  .state b { font: 800 1.4rem/1 var(--mono); color: #7dd3fc; }
+  .jtext { font-size: 0.86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .outs { display: flex; gap: 5px; align-items: center; font: 700 0.66rem var(--mono); }
+  .outs span, .outs code { padding: 0.2rem 0.45rem; border-radius: 6px; background: #1e293b; color: #64748b; border: 1px solid #334155; font: inherit; }
+  .outs .o-ok.on { background: #14532d; color: #86efac; border-color: #16a34a; }
+  .outs .o-err.on, .outs .bad { background: #450a0a; color: #fca5a5; border-color: #dc2626; }
+  .ctl { display: flex; gap: 6px; }
+  .ctl button { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+  .ctl .run { background: #0369a1; border-color: #0284c7; }
+
+  .topo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(3.5rem, 0.45fr) minmax(0, 1.15fr) minmax(3.5rem, 0.45fr) minmax(0, 1fr); align-items: center; gap: 0; margin: 0.9rem 0; }
+  .link { order: 1; position: relative; display: grid; gap: 0.3rem; justify-items: center; }
+  .link[data-link='b'] { order: 3; }
+  .lbl { font: 600 0.58rem var(--mono); color: var(--muted); text-align: center; line-height: 1.2; }
+  .track { position: relative; width: 100%; height: 1.3rem; }
+  .track::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; border-top: 2px dashed color-mix(in srgb, var(--accent) 40%, var(--line)); }
+  .link.busy .track::before { border-top-style: solid; border-color: var(--accent); }
+  .pkt { position: absolute; top: 50%; left: 0; translate: 0 -50%; opacity: 0; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; font: 700 0.58rem/20px var(--mono); font-style: normal; text-align: center; white-space: nowrap; }
+  .pkt.data { background: #0ea5e9; color: #fff; box-shadow: 0 0 10px #38bdf8; }
+  .pkt.req { background: var(--surface); color: var(--accent); border: 2px solid var(--accent); line-height: 16px; }
+  .pkt.lost { background: #ef4444; color: #fff; }
+
+  .plc { border: 1px solid var(--line); border-radius: 14px; padding: 0.7rem 0.75rem; background: color-mix(in srgb, var(--accent) 3%, var(--surface)); min-width: 0; }
+  .plc header { display: flex; align-items: center; gap: 0.55rem; }
+  .plc header b { display: block; font-size: 0.92rem; }
+  .plc header small { display: block; font: 600 0.62rem var(--mono); color: var(--muted); }
+  .plc header div { min-width: 0; flex: 1; }
+  .dev { display: inline-flex; gap: 2px; padding: 3px; border-radius: 5px; background: #374151; flex: none; }
+  .dev i { width: 6px; height: 1.6rem; border-radius: 2px; background: linear-gradient(#cbd5e1, #94a3b8); }
+  .d300 i:first-child { width: 10px; background: linear-gradient(#64748b, #475569); }
+  .d400 { background: #1f2937; } .d400 i { width: 5px; height: 2rem; background: linear-gradient(#9ca3af, #6b7280); }
+  .d1200 { background: #e5e7eb; border: 1px solid #9ca3af; } .d1200 i { width: 14px; background: linear-gradient(#0f766e, #115e59); } .d1200 i + i { width: 8px; background: linear-gradient(#94a3b8, #64748b); }
+  .lamp { width: 0.7rem; height: 0.7rem; border-radius: 50%; background: #22c55e; box-shadow: 0 0 6px #22c55e; flex: none; }
+  .partner.lost .lamp { background: #ef4444; box-shadow: 0 0 6px #ef4444; animation: blink 0.8s steps(2) infinite; }
+  .db { margin: 0.5rem 0 0.4rem; font: 600 0.66rem var(--mono); color: var(--muted); }
+  .sig button { font-size: 0.66rem; padding: 0.25rem 0.55rem; }
+  .sig button[aria-pressed='true'] { background: color-mix(in srgb, #22c55e 14%, var(--surface)); border-color: #22c55e; }
+  .mine, .got { margin: 0.45rem 0 0; font: 600 0.68rem var(--mono); color: var(--muted); display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+  .mine b { color: var(--text); min-width: 4ch; }
+  .cpu { padding: 0.05rem 0.4rem; border-radius: 4px; background: #dcfce7; color: #15803d; }
+  .partner.stop .cpu { background: #fef3c7; color: #b45309; }
+  .rx { color: var(--text); }
+
+  .client { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+  .fb { margin-top: 0.55rem; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }
+  .fbn { margin: 0; padding: 0.3rem 0.6rem; display: flex; align-items: baseline; gap: 0.5rem; background: #0f172a; color: #e2e8f0; }
+  .fbn b { font: 800 0.9rem var(--mono); color: #7dd3fc; }
+  .fbn small { font: 600 0.62rem var(--mono); color: #94a3b8; }
+  .fb dl { margin: 0; padding: 0.4rem 0.6rem; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.2rem 0.6rem; font: 600 0.64rem var(--mono); }
+  .fb dt { color: var(--muted); }
+  .fb dd { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fb .hi { color: #16a34a; }
+  .fb .bad { color: #dc2626; }
+
+  .bytes { border: 1px solid var(--line); border-radius: 14px; padding: 0.7rem 0.75rem; }
+  .bhead { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem 1rem; flex-wrap: wrap; margin-bottom: 0.55rem; }
+  .legend { margin: 0; display: flex; gap: 0.8rem; flex-wrap: wrap; font: 600 0.64rem var(--mono); color: var(--muted); }
+  .legend span::before { content: ''; display: inline-block; width: 0.65rem; height: 0.65rem; border-radius: 3px; margin-right: 0.35rem; vertical-align: -1px; }
+  .lp::before { background: #14b8a6; } .lc::before { background: #a855f7; }
+  .scroll { overflow-x: auto; }
+  .grid { display: grid; grid-template-columns: 6.6rem repeat(20, minmax(1.55rem, 1fr)); gap: 3px; min-width: 40rem; align-items: center; }
+  .rn { font: 600 0.62rem var(--mono); color: var(--muted); white-space: nowrap; }
+  .rn b { color: var(--text); }
+  .fl { font: 700 0.55rem var(--mono); text-align: center; padding: 0.15rem 0; border-radius: 4px; white-space: nowrap; overflow: hidden; }
+  .fl.p { background: color-mix(in srgb, #14b8a6 14%, transparent); color: #0f766e; }
+  .fl.c { background: color-mix(in srgb, #a855f7 14%, transparent); color: #7e22ce; }
+  .cell { font: 600 0.7rem/1.9 var(--mono); text-align: center; border-radius: 5px; border: 1px solid var(--line); background: var(--chip); }
+  .cell.p { border-bottom: 2px solid #14b8a6; } .cell.c { border-bottom: 2px solid #a855f7; }
+  .cell.hit { animation: hit 0.9s ease-out; }
+  @keyframes hit { 0% { background: #38bdf8; color: #fff; transform: scale(1.12); } 100% { background: var(--chip); } }
+  .off { font: 500 0.55rem var(--mono); color: var(--muted); text-align: center; }
+  .decode { margin: 0.65rem 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 0.3rem 1rem; }
+  .decode :global(div) { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.74rem; border-bottom: 1px dashed var(--line); padding: 0.1rem 0; }
+  .decode :global(dt) { color: var(--muted); }
+  .decode :global(dt code) { font: 600 0.66rem var(--mono); color: var(--accent); }
+  .decode :global(dd) { margin: 0; font: 700 0.72rem var(--mono); }
+
+  .vent { display: grid; grid-template-columns: minmax(0, 0.55fr) minmax(0, 2fr); gap: 0.8rem; margin-top: 0.9rem; align-items: stretch; }
+  .blower { display: grid; justify-items: center; align-content: center; gap: 0.4rem; text-align: center; padding: 0.7rem; border-radius: 14px; background: #0f172a; color: #e2e8f0; }
+  .blower small { display: block; font: 600 0.6rem var(--mono); color: #94a3b8; }
+  .blower b { display: block; font: 800 1.35rem/1.1 var(--mono); color: #4ade80; }
+  .pct { font: 600 0.72rem var(--mono); color: #cbd5e1; }
+  .bmsg { font: 600 0.62rem var(--mono); color: #fcd34d; min-height: 1em; }
+  .fan { width: 3.4rem; height: 3.4rem; border-radius: 50%; border: 3px solid #475569; background: conic-gradient(#64748b 0 20deg, transparent 20deg 72deg, #64748b 72deg 92deg, transparent 92deg 144deg, #64748b 144deg 164deg, transparent 164deg 216deg, #64748b 216deg 236deg, transparent 236deg 288deg, #64748b 288deg 308deg, transparent 308deg), radial-gradient(circle, #94a3b8 0 18%, #1e293b 19%); }
+  .fan.on { border-color: #22c55e; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .zones { display: grid; grid-template-columns: 5fr 6fr; gap: 0.6rem; }
+  .zone { border: 1px solid var(--line); border-radius: 14px; padding: 0.55rem 0.6rem; min-width: 0; }
+  .zone p { margin: 0 0 0.45rem; display: flex; justify-content: space-between; gap: 0.4rem; font: 700 0.66rem var(--mono); color: var(--muted); }
+  .zm { padding: 0 0.4rem; border-radius: 4px; background: var(--chip); color: var(--muted); }
+  .zm[data-m='NORMAL'] { background: #dcfce7; color: #15803d; }
+  .zm[data-m='FULL'] { background: #e0f2fe; color: #0369a1; }
+  .zm[data-m='HOLD'] { background: #fee2e2; color: #b91c1c; }
+  .zone ul { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(2.6rem, 1fr)); gap: 4px; }
+  .zone li { display: grid; justify-items: center; gap: 0.2rem; padding: 0.35rem 0.1rem; border-radius: 8px; background: var(--chip); }
+  .zone li b { font: 700 0.62rem var(--mono); }
+  .zone li em { font: 600 0.58rem var(--mono); font-style: normal; color: var(--muted); }
+  .act { width: 1.2rem; height: 0.9rem; border-radius: 3px 3px 2px 2px; background: #94a3b8; box-shadow: inset 0 -0.25rem 0 #64748b; transition: background 0.3s; }
+  .zone li.open .act { background: #22c55e; box-shadow: inset 0 -0.25rem 0 #15803d, 0 0 8px rgb(34 197 94 / 0.5); }
+  .vb { width: 80%; height: 0.3rem; border-radius: 3px; background: color-mix(in srgb, var(--muted) 20%, transparent); overflow: hidden; }
+  .vb i { display: block; height: 100%; width: 0; background: #22c55e; transition: width 0.6s ease; }
+
+  .lower { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 0.8rem; margin-top: 0.9rem; align-items: start; }
+  .faults { flex-direction: column; align-items: stretch; }
+  .faults span { font: 700 0.75rem var(--mono); color: var(--muted); }
+  .faults button { text-align: left; border-radius: 10px; }
+  .log { margin: 0; padding: 0.5rem 0.7rem; list-style: none; min-height: 10.6rem; border-radius: 12px; background: #0f172a; color: #cbd5e1; font: 0.7rem/1.55 var(--mono); }
+  .log :global(li) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .log :global(time) { color: #64748b; margin-right: 0.6rem; }
+  .log :global(.err) { color: #fca5a5; }
+  .log :global(.ok) { color: #86efac; }
+  .log :global(.warn) { color: #fcd34d; }
+  .note { margin: 0.6rem 0 0; font-size: 0.75rem; color: var(--muted); }
+
+  @media (max-width: 760px) {
+    .head { grid-template-columns: auto minmax(0, 1fr); }
+    .outs, .ctl { grid-column: span 2; }
+    .ctl button { flex: 1; }
+    .topo { grid-template-columns: minmax(0, 1fr); }
+    .link { grid-template-columns: 1.5rem auto; justify-content: center; align-items: center; gap: 0.6rem; }
+    .track { width: 1.3rem; height: 3.2rem; grid-row: 1; grid-column: 1; }
+    .lbl { grid-row: 1; grid-column: 2; }
+    .track::before { left: 50%; right: auto; top: 0; bottom: 0; border-top: 0; border-left: 2px dashed color-mix(in srgb, var(--accent) 40%, var(--line)); }
+    .link.busy .track::before { border-left-style: solid; border-color: var(--accent); }
+    .pkt { top: 0; left: 50%; translate: -50% 0; }
+    .vent, .lower { grid-template-columns: minmax(0, 1fr); }
+    .zones { grid-template-columns: minmax(0, 1fr); }
+    .blower { grid-template-columns: auto 1fr; justify-items: start; text-align: left; }
+    .bmsg { grid-column: span 2; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .fan.on, .pg[data-tower='r'] .tower .r, .partner.lost .lamp, .cell.hit { animation: none; }
+  }
+</style>
