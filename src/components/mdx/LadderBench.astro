@@ -1,0 +1,121 @@
+---
+// A first exercise on an S7-1200 bench trainer: the start/stop seal-in circuit, with the KTP700 tiles next to it.
+// Start is a normally open push button (I0.0); Stop is wired normally closed (I0.1 reads 1 until pressed), so a
+// broken stop wire stops the motor instead of leaving it uncontrollable. Overload (I0.2) trips the motor.
+// Contacts and coils light where power flows. The addresses are the usual trainer layout, shown as an example.
+interface Props { title?: string }
+const { title = 'Bench exercise: start / stop with seal-in' } = Astro.props;
+---
+<section class="lb">
+  <div class="bar">
+    <p class="title">{title}</p>
+    <p class="hint">S7-1200 · LAD · KTP700</p>
+  </div>
+
+  <div class="bench">
+    <div class="buttons" role="group" aria-label="Push buttons">
+      <button type="button" class="pb start" data-in="start" aria-pressed="false"><i></i>START<small>I0.0 · NO</small></button>
+      <button type="button" class="pb stop" data-in="stop" aria-pressed="false"><i></i>STOP<small>I0.1 · NC</small></button>
+      <button type="button" class="pb ol" data-in="ol" aria-pressed="false"><i></i>OVERLOAD<small>I0.2 · trip</small></button>
+      <button type="button" class="pb wire" data-in="wire" aria-pressed="false"><i></i>CUT STOP WIRE<small>fault test</small></button>
+    </div>
+    <div class="hmi" aria-live="polite">
+      <p class="hh">KTP700 · Motor M1</p>
+      <div class="tile motor"><span class="dot"></span><b class="ms">STOPPED</b></div>
+      <div class="tile"><small>Starts</small><b class="cnt">0</b></div>
+      <div class="tile alarm"><small>Alarm</small><b class="al">—</b></div>
+    </div>
+  </div>
+
+  <svg viewBox="0 0 640 214" role="img" aria-label="Ladder rung with start, stop and overload contacts and the motor coil">
+    <line class="rail" x1="20" y1="20" x2="20" y2="200" /><line class="rail" x1="620" y1="20" x2="620" y2="200" />
+    <path class="w w-a" d="M20 70 H90" />
+    <path class="w w-s" d="M130 70 H170 M60 70 V160 H90 M130 160 H170 V70" />
+    <path class="w w-b" d="M170 70 H260" />
+    <path class="w w-c" d="M300 70 H390" />
+    <path class="w w-d" d="M430 70 H520" />
+    <path class="w w-e" d="M560 70 H620" />
+    <g class="ct c-start"><line x1="90" y1="54" x2="90" y2="86" /><line x1="130" y1="54" x2="130" y2="86" /><text x="110" y="44">I0.0</text><text class="n" x="110" y="104">Start</text></g>
+    <g class="ct c-seal"><line x1="90" y1="144" x2="90" y2="176" /><line x1="130" y1="144" x2="130" y2="176" /><text x="110" y="136">Q0.0</text><text class="n" x="110" y="196">Seal-in</text></g>
+    <g class="ct c-stop"><line x1="260" y1="54" x2="260" y2="86" /><line x1="300" y1="54" x2="300" y2="86" /><text x="280" y="44">I0.1</text><text class="n" x="280" y="104">Stop (NC)</text></g>
+    <g class="ct c-ol nc"><line x1="390" y1="54" x2="390" y2="86" /><line x1="430" y1="54" x2="430" y2="86" /><line class="slash" x1="396" y1="86" x2="424" y2="54" /><text x="410" y="44">I0.2</text><text class="n" x="410" y="104">Overload</text></g>
+    <g class="coil"><path d="M524 54 Q512 70 524 86 M556 54 Q568 70 556 86" /><text x="540" y="44">Q0.0</text><text class="n" x="540" y="104">Motor M1</text></g>
+  </svg>
+  <p class="foot">Hold START, let go — the seal-in contact keeps the motor running. Then cut the stop wire: because STOP is wired normally closed, a broken wire stops the motor instead of leaving it impossible to stop.</p>
+</section>
+
+<script>
+  document.querySelectorAll<HTMLElement>('.lb').forEach((box) => {
+    const st = { start: false, stop: false, ol: false, wire: false };
+    let q = false, starts = 0;
+    const $ = (s: string) => box.querySelector<HTMLElement>(s)!;
+    function scan() {
+      const i0 = st.start, i1 = !st.stop && !st.wire, i2 = st.ol;
+      const was = q;
+      const branch = i0 || q;
+      q = branch && i1 && !i2;
+      if (q && !was) starts++;
+      const on = (sel: string, v: boolean) => box.querySelectorAll(sel).forEach((e) => e.classList.toggle('live', v));
+      on('.w-a', true);
+      on('.c-start', i0); on('.c-seal', q); on('.w-s', true);
+      on('.w-b', branch); on('.c-stop', i1);
+      on('.w-c', branch && i1); on('.c-ol', !i2);
+      on('.w-d, .w-e, .coil', q);
+      box.classList.toggle('running', q);
+      $('.ms').textContent = q ? 'RUNNING' : 'STOPPED';
+      $('.cnt').textContent = String(starts);
+      $('.al').textContent = i2 ? 'Overload trip' : st.wire ? 'Stop circuit open' : '—';
+      $('.alarm').classList.toggle('on', i2 || st.wire);
+    }
+    box.querySelectorAll<HTMLButtonElement>('.pb').forEach((b) => {
+      const k = b.dataset.in as keyof typeof st;
+      const set = (v: boolean) => { st[k] = v; b.setAttribute('aria-pressed', String(v)); scan(); };
+      if (k === 'start' || k === 'stop') {
+        b.addEventListener('pointerdown', () => set(true));
+        ['pointerup', 'pointerleave', 'pointercancel'].forEach((e) => b.addEventListener(e, () => st[k] && set(false)));
+        b.addEventListener('keydown', (e) => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); set(true); } });
+        b.addEventListener('keyup', (e) => { if (e.key === ' ' || e.key === 'Enter') set(false); });
+      } else {
+        b.addEventListener('click', () => set(!st[k]));
+      }
+    });
+    scan();
+  });
+</script>
+
+<style>
+  .lb { --live: #16a34a; --bad: #dc2626; margin: 2rem 0; padding: 1.2rem 1.3rem 1.1rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: var(--shadow); }
+  .bar { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.2rem 1rem; }
+  .bar p { margin: 0; }
+  .title { font-weight: 700; font-size: 1.08rem; }
+  .hint { color: var(--muted); font: 0.78rem var(--mono); }
+  .bench { display: grid; grid-template-columns: 1fr 15rem; gap: 0.9rem; margin: 1rem 0 0.8rem; }
+  @media (max-width: 640px) { .bench { grid-template-columns: 1fr; } }
+  .buttons { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; }
+  .pb { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; padding: 0.6rem 0.4rem; font: 700 0.8rem var(--mono); border: 1px solid var(--line); border-radius: 12px; background: var(--chip); color: var(--text); cursor: pointer; user-select: none; touch-action: none; }
+  .pb small { font: 400 0.68rem var(--mono); color: var(--muted); }
+  .pb i { width: 30px; height: 30px; border-radius: 50%; border: 3px solid rgb(0 0 0 / 0.15); box-shadow: inset 0 -4px 0 rgb(0 0 0 / 0.18); }
+  .start i { background: #22c55e; } .stop i { background: #ef4444; } .ol i { background: #f59e0b; } .wire i { background: #64748b; border-radius: 6px; }
+  .pb[aria-pressed='true'] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+  .pb[aria-pressed='true'] i { transform: translateY(2px); box-shadow: inset 0 2px 0 rgb(0 0 0 / 0.2); }
+  .hmi { display: grid; gap: 0.4rem; padding: 0.6rem; border-radius: 14px; background: #1e293b; color: #e2e8f0; border: 6px solid #0f172a; }
+  .hh { margin: 0; font: 600 0.7rem var(--mono); color: #94a3b8; }
+  .tile { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.4rem 0.6rem; border-radius: 8px; background: #334155; font-size: 0.78rem; }
+  .tile small { color: #94a3b8; }
+  .tile b { font: 700 0.85rem var(--mono); }
+  .motor { justify-content: flex-start; }
+  .dot { width: 14px; height: 14px; border-radius: 50%; background: #64748b; }
+  .running .dot { background: #22c55e; box-shadow: 0 0 10px #22c55e; }
+  .alarm.on { background: #7f1d1d; }
+  svg { width: 100%; height: auto; display: block; background: color-mix(in srgb, var(--chip) 45%, transparent); border-radius: 12px; }
+  .rail { stroke: var(--text); stroke-width: 4; }
+  .w { fill: none; stroke: var(--muted); stroke-width: 2.5; }
+  .ct line, .coil path { stroke: var(--text); stroke-width: 3; fill: none; }
+  .ct .slash { stroke-width: 2.5; }
+  svg text { font: 600 12px var(--mono); fill: var(--text); text-anchor: middle; }
+  svg text.n { font: 11px var(--font); fill: var(--muted); }
+  .live, .live line, .live path { stroke: var(--live) !important; }
+  .w.live { stroke-width: 4; }
+  .live text:not(.n) { fill: var(--live); }
+  .foot { margin: 0.7rem 0 0; font-size: 0.78rem; line-height: 1.5; color: var(--muted); }
+</style>

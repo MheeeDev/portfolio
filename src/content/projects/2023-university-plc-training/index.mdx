@@ -8,8 +8,8 @@ role: Training engineer — trainer kits, course material and hands-on sessions
 sector: Engineering education — PLC and process-control training
 platforms: [Siemens S7-1200, TIA Portal V17, SIMATIC KTP700, Node-RED, MQTT]
 tags: [Education, PLC, HMI, Process control]
-cover: ./cover.svg
-coverAlt: The six training courses arranged as a path from PLC ladder to cloud IoT, around an S7-1200 trainer kit and a pressure-process rig.
+cover: ./cover.webp
+coverAlt: Cover — Six courses. Real hardware. A drawn S7-1200 bench trainer with a KTP700 panel and push buttons, the ladder seal-in exercise and stat pills for six courses and one trainer per student.
 highlights:
   - Six courses in one programme — from ladder logic to cloud IoT
   - Every student on a real S7-1200 trainer with a KTP700 panel
@@ -17,43 +17,57 @@ highlights:
 track: education
 ---
 
+import StatStrip from '../../../components/mdx/StatStrip.astro';
+import LadderBench from '../../../components/mdx/LadderBench.astro';
+
 ## Problem
 
 Engineering students reach their final year knowing control theory but having never configured a
 PLC, drawn an HMI screen or tuned a loop on real equipment. The university wanted short, hands-on
 courses that would close that gap before they started work.
 
+<StatStrip items={[
+  { value: '6', label: 'courses, from ladder logic to cloud IoT' },
+  { value: '1', label: 'S7-1200 + KTP700 bench trainer per student' },
+  { value: '1', label: 'real pressure-process rig for the PID course' },
+]} />
+
 ## My role & scope
 
 I worked on the courses while at the system integrator: preparing the trainer kits, the course
 material and the hands-on exercises, and helping run the sessions in the lab.
 
-Six courses:
-
-1. PLC ladder programming
-2. Siemens TIA Portal V17
-3. HMI with the SIMATIC KTP700
-4. Process pressure control
-5. Modern manufacturing skills
-6. Cloud IoT
+| # | Course | What students did |
+|---|---|---|
+| 1 | PLC ladder programming | Contacts, timers, counters |
+| 2 | Siemens TIA Portal V17 | Projects, hardware configuration, blocks |
+| 3 | HMI with the SIMATIC KTP700 | Screens, tags, alarms |
+| 4 | Process pressure control | PID on a real process rig |
+| 5 | Modern manufacturing skills | Automation in today's plants |
+| 6 | Cloud IoT | PLC data to a dashboard |
 
 ## Approach
 
 ### Hardware for every student
 
 Each student works on a bench trainer — an S7-1200 PLC with a KTP700 panel, push buttons and lamps
-— so every exercise ends with something that actually switches.
+— so every exercise ends with something that actually switches. The first exercise on a bench like
+this is usually the start/stop circuit below: one rung, but it already teaches seal-in, scan logic and
+why a stop button is wired normally closed.
+
+<LadderBench />
 
 ### A real loop for process control
 
 The pressure-control course runs on a process rig with an air supply, a control valve, a pressure
 transmitter and a PID controller in the PLC. Students see what a badly tuned loop does to a real
-pressure, not just to a simulated curve.
+pressure, not just to a simulated curve — the same kind of loop measured step by step in my
+[B.Eng. thesis](../2023-thesis-mpc-based-pid/).
 
 ### Finish with data leaving the PLC
 
-The last course takes PLC data to the cloud, so students see the whole chain from a sensor to a
-dashboard.
+The last course takes PLC data to the cloud through Node-RED and MQTT, so students see the whole chain
+from a sensor to a dashboard.
 
 ## Delivery
 
@@ -65,9 +79,17 @@ dashboard.
 
 - Students configured PLCs, built HMI screens and tuned a loop on real hardware
 - A course set the university could run again with the same kits
-- The start of the education work that continued in 2025 and 2026
+- The start of the education work that continued in 2025 and 2026 — the
+  [QR-payment trainer](../2025-qr-payment-trainer/), the [digital twin rig](../2025-digital-twin-rig/)
+  and the [cloud lab](../2026-pdc-lab-cloud/)
+
+How to tune a pressure loop from a step test, in Thai, is in the
+[PID tuning article](/blog/pid-tuning-step-test-to-imc-lambda/).
 
 ## Skills used
 
-Siemens S7-1200, TIA Portal V17 and KTP700 · ladder logic · PID pressure control · IoT
-gateways and cloud dashboards · preparing hands-on training.
+- **Siemens:** S7-1200, TIA Portal V17, KTP700 HMI
+- **PLC:** ladder logic, timers and counters, safe wiring of stop circuits
+- **Process control:** PID pressure control on a real rig
+- **IoT:** Node-RED and MQTT from the PLC to a cloud dashboard
+- **Teaching:** preparing kits, exercises and hands-on sessions

@@ -1,0 +1,173 @@
+---
+// The training rig's level–flow loop, single loop against cascade. Level LT-101 is an integrating process;
+// flow FT-101 is first order plus dead time; FCV-101 is the control valve. At 200 s the pump head drops
+// 30 %, so the same valve opening gives less flow. In cascade the flow PI sees that within seconds and
+// opens the valve before the level moves much; in a single loop the level PI only notices once the tank drifts.
+// Parameters are illustrative (chosen to show the behaviour), not the rig's measured values.
+interface Props { title?: string }
+const { title = 'Level–flow loop: single PI or cascade' } = Astro.props;
+---
+<section class="cl">
+  <div class="bar">
+    <p class="title">{title}</p>
+    <p class="hint">LT-101 · FT-101 · FCV-101 · USE_OPC = 0 (plant model)</p>
+  </div>
+
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Control structure">
+      <button type="button" data-mode="single" aria-pressed="false">Single loop</button>
+      <button type="button" data-mode="cascade" aria-pressed="true">Cascade</button>
+    </div>
+    <div class="seg" role="group" aria-label="Disturbance">
+      <button type="button" data-dist="on" aria-pressed="true">Pump head −30 % at 200 s</button>
+      <button type="button" data-dist="off" aria-pressed="false">No disturbance</button>
+    </div>
+  </div>
+
+  <div class="chain" aria-hidden="true">
+    <span class="blk lic"><b>LIC-101</b><small>level PI</small></span>
+    <span class="arr"><i></i><em class="lab-a">flow SP</em></span>
+    <span class="blk fic"><b>FIC-101</b><small>flow PI</small></span>
+    <span class="arr"><i></i><em>valve %</em></span>
+    <span class="blk fcv"><b>FCV-101</b><small>control valve</small></span>
+    <span class="arr"><i></i></span>
+    <span class="blk tank"><b>Tank</b><small>LT-101 · FT-101</small></span>
+  </div>
+
+  <svg viewBox="0 0 640 230" role="img" aria-label="Level, flow and valve output over 400 seconds">
+    {[0, 1, 2, 3, 4].map((i) => <line class="grid" x1="20" x2="624" y1={16 + i * 44} y2={16 + i * 44} />)}
+    <line class="dline" x1="322" x2="322" y1="16" y2="192" />
+    <text class="ax dtxt" x="326" y="28">pump head −30 %</text>
+    <path class="valve" d="" />
+    <path class="flow" d="" />
+    <path class="sp" d="" />
+    <path class="lvl" d="" />
+    <text class="ax" x="624" y="222" text-anchor="end">0 → 400 s · SP 50 → 60 % at 20 s</text>
+  </svg>
+  <p class="legend"><i class="k lvl-k"></i>Level <i class="k sp-k"></i>Level SP <i class="k flow-k"></i>Inlet flow <i class="k valve-k"></i>Valve output <span class="scale">· level 40–70 %, flow and valve 0–100 %</span></p>
+
+  <dl class="metrics">
+    <div><dt>Level dip after disturbance</dt><dd data-o="dev"></dd></div>
+    <div><dt>Back within ±0.5 %</dt><dd data-o="rec"></dd></div>
+    <div><dt>Level overshoot on SP step</dt><dd data-o="os"></dd></div>
+    <div><dt>Loops to tune</dt><dd data-o="n"></dd></div>
+  </dl>
+  <p class="foot">Illustrative parameters, not the rig's measured models. The inner flow loop is tuned first and runs several times faster than the outer level loop.</p>
+</section>
+
+<script>
+  function simulate(cascade: boolean, dist: boolean) {
+    const dt = 0.05, T = 400, Kf = 1, tf = 4, thf = 1.5, a = 0.02;
+    const Kcl = 4, Til = 80, Kcf = 0.8, Tif = 4;
+    let L = 50, F = 50, Il = 0, If = 0, dev = 0, rec = 0, maxStep = 50;
+    const buf: number[] = Array(Math.round(thf / dt)).fill(50);
+    const X = (t: number) => 20 + (t / T) * 604;
+    const Yl = (v: number) => 192 - ((v - 40) / 30) * 176;
+    const Yp = (v: number) => 192 - (v / 100) * 176;
+    const lvl: string[] = [], flow: string[] = [], valve: string[] = [];
+    for (let i = 0; i <= T / dt; i++) {
+      const t = i * dt, sp = t < 20 ? 50 : 60, d = dist && t >= 200 ? 0.7 : 1;
+      const el = sp - L;
+      let out = 50 + Kcl * (el + Il / Til), sat = false;
+      if (out > 100) { out = 100; sat = true; } else if (out < 0) { out = 0; sat = true; }
+      if (!sat) Il += el * dt;
+      let v = out;
+      if (cascade) {
+        const ef = out - F;
+        let vv = 50 + Kcf * (ef + If / Tif), s2 = false;
+        if (vv > 100) { vv = 100; s2 = true; } else if (vv < 0) { vv = 0; s2 = true; }
+        if (!s2) If += ef * dt;
+        v = vv;
+      }
+      buf.push(v);
+      const vd = buf.shift()!;
+      F += ((Kf * d * vd - F) * dt) / tf;
+      L += a * (F - 50) * dt;
+      if (t > 20 && t < 200) maxStep = Math.max(maxStep, L);
+      if (t >= 200) { dev = Math.max(dev, Math.abs(L - 60)); if (Math.abs(L - 60) > 0.5) rec = t - 200; }
+      if (i % 20 === 0) {
+        lvl.push(`${X(t).toFixed(1)},${Math.max(8, Math.min(200, Yl(L))).toFixed(1)}`);
+        flow.push(`${X(t).toFixed(1)},${Yp(F).toFixed(1)}`);
+        valve.push(`${X(t).toFixed(1)},${Yp(v).toFixed(1)}`);
+      }
+    }
+    return { dev, rec, os: Math.max(0, maxStep - 60), lvl, flow, valve, X, Yl };
+  }
+
+  document.querySelectorAll<HTMLElement>('.cl').forEach((box) => {
+    let cascade = true, dist = true;
+    const $ = (s: string) => box.querySelector<HTMLElement>(s)!;
+    const set = (k: string, txt: string, cls: string) => { const el = $(`[data-o=${k}]`); el.textContent = txt; el.className = cls; };
+    function draw() {
+      const r = simulate(cascade, dist);
+      $('.lvl').setAttribute('d', `M${r.lvl.join(' L')}`);
+      $('.flow').setAttribute('d', `M${r.flow.join(' L')}`);
+      $('.valve').setAttribute('d', `M${r.valve.join(' L')}`);
+      $('.sp').setAttribute('d', `M${r.X(0)},${r.Yl(50)} H${r.X(20)} V${r.Yl(60)} H${r.X(400)}`);
+      box.classList.toggle('single', !cascade);
+      box.classList.toggle('nodist', !dist);
+      if (dist) {
+        set('dev', `${r.dev.toFixed(2)} %`, r.dev > 2 ? 'bad' : 'good');
+        set('rec', r.rec > 190 ? 'not in 200 s' : `${r.rec.toFixed(0)} s`, r.rec > 60 ? 'bad' : 'good');
+      } else { set('dev', '—', ''); set('rec', '—', ''); }
+      set('os', `${r.os.toFixed(1)} %`, r.os > 3 ? 'warn' : 'good');
+      set('n', cascade ? '2 · flow first' : '1', '');
+    }
+    box.querySelectorAll<HTMLElement>('[data-mode]').forEach((b) => b.addEventListener('click', () => {
+      cascade = b.dataset.mode === 'cascade';
+      box.querySelectorAll('[data-mode]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      draw();
+    }));
+    box.querySelectorAll<HTMLElement>('[data-dist]').forEach((b) => b.addEventListener('click', () => {
+      dist = b.dataset.dist === 'on';
+      box.querySelectorAll('[data-dist]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      draw();
+    }));
+    draw();
+  });
+</script>
+
+<style>
+  .cl { --ok: #16a34a; --warn: #d97706; --bad: #dc2626; --flow: #0d9488; --valve: #a855f7; margin: 2rem 0; padding: 1.2rem 1.3rem 1.1rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: var(--shadow); }
+  .bar { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.2rem 1rem; }
+  .bar p { margin: 0; }
+  .title { font-weight: 700; font-size: 1.08rem; }
+  .hint { color: var(--muted); font: 0.78rem var(--mono); }
+  .controls { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; margin: 0.9rem 0; }
+  .seg { display: inline-flex; flex-wrap: wrap; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--chip); }
+  .seg button { font: inherit; font-size: 0.82rem; padding: 0.32rem 0.8rem; border: 0; border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; }
+  .seg button[aria-pressed='true'] { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 0.12); }
+  .chain { display: flex; align-items: center; gap: 0.3rem; margin: 0 0 0.8rem; overflow-x: auto; padding-bottom: 2px; }
+  .blk { flex: none; display: flex; flex-direction: column; padding: 0.4rem 0.7rem; border: 1px solid var(--line); border-radius: 10px; background: var(--chip); transition: opacity 0.2s; }
+  .blk b { font: 600 0.78rem var(--mono); }
+  .blk small { font-size: 0.7rem; color: var(--muted); }
+  .lic { border-color: var(--accent); }
+  .fic { border-color: var(--flow); }
+  .arr { flex: 1 0 34px; position: relative; height: 22px; }
+  .arr i { position: absolute; left: 0; right: 4px; top: 10px; height: 2px; background: var(--muted); }
+  .arr i::after { content: ''; position: absolute; right: -5px; top: -4px; border: 5px solid transparent; border-left-color: var(--muted); }
+  .arr em { position: absolute; left: 0; right: 0; top: -4px; text-align: center; font: 0.62rem var(--mono); font-style: normal; color: var(--muted); white-space: nowrap; }
+  .single .fic { opacity: 0.3; border-style: dashed; }
+  .single .lab-a::after { content: ' (bypassed)'; }
+  svg { width: 100%; height: auto; display: block; background: color-mix(in srgb, var(--chip) 45%, transparent); border-radius: 12px; }
+  .grid { stroke: var(--line); }
+  .ax { font: 10px var(--mono); fill: var(--muted); }
+  .dline { stroke: #f59e0b; stroke-dasharray: 4 4; }
+  .dtxt { fill: #d97706; }
+  .nodist .dline, .nodist .dtxt { display: none; }
+  .sp { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 6 5; }
+  .lvl { fill: none; stroke: var(--accent); stroke-width: 2.6; stroke-linejoin: round; }
+  .flow { fill: none; stroke: var(--flow); stroke-width: 1.4; opacity: 0.8; }
+  .valve { fill: none; stroke: var(--valve); stroke-width: 1.3; opacity: 0.6; }
+  .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.45rem; margin: 0.4rem 0 0; font-size: 0.76rem; color: var(--muted); }
+  .k { display: inline-block; width: 16px; height: 3px; border-radius: 2px; margin-left: 0.4rem; }
+  .k:first-child { margin-left: 0; }
+  .lvl-k { background: var(--accent); } .sp-k { background: var(--muted); } .flow-k { background: var(--flow); } .valve-k { background: var(--valve); }
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.55rem; margin: 0.8rem 0 0; }
+  @media (max-width: 600px) { .metrics { grid-template-columns: repeat(2, 1fr); } }
+  .metrics div { padding: 0.55rem 0.7rem; border: 1px solid var(--line); border-radius: 12px; }
+  dt { font: 0.64rem var(--mono); text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  dd { margin: 0.2rem 0 0; font-weight: 700; font-size: 0.95rem; }
+  dd.good { color: var(--ok); } dd.warn { color: var(--warn); } dd.bad { color: var(--bad); }
+  .foot { margin: 0.7rem 0 0; font-size: 0.74rem; line-height: 1.5; color: var(--muted); }
+</style>

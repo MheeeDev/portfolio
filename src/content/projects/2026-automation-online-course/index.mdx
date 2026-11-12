@@ -7,8 +7,8 @@ role: Course author and presenter — outline, slides, lab files and recorded le
 sector: Engineering education — online course
 platforms: [MATLAB / Simulink, Siemens TIA Portal V17, S7-1500, PLCSIM Advanced, OPC UA, UaExpert]
 tags: [Education, Process control, OPC UA, PLC]
-cover: ./cover.svg
-coverAlt: The six sections of the course as a path — Simulink fundamentals, PID design, TIA Portal, OPC UA, hardware-in-the-loop and final projects.
+cover: ./cover.webp
+coverAlt: Cover — Model to PLC. One course. The six-section learning path, the 4–20 mA scaling widget and stat pills for 29 lessons and 12 recorded videos.
 highlights:
   - 6 sections and 29 lessons, from a first Simulink model to hardware-in-the-loop
   - Every lesson marked as Theory, Demo, Lab or Project
@@ -17,11 +17,21 @@ highlights:
 track: education
 ---
 
+import StatStrip from '../../../components/mdx/StatStrip.astro';
+import ScalingLab from '../../../components/mdx/ScalingLab.astro';
+
 ## Problem
 
 Automation engineers know PLCs but rarely design a controller; control students know Simulink but
 have never configured a PLC. Courses teach the two separately, and the bridge between them — OPC UA,
 scaling, hardware-in-the-loop — is exactly where real commissioning goes wrong.
+
+<StatStrip items={[
+  { value: '6', label: 'sections, from Simulink to hardware-in-the-loop' },
+  { value: '29', label: 'lessons, each labelled Theory, Demo, Lab or Project' },
+  { value: '2', label: 'loops followed all the way — tank level and flow' },
+  { value: '12', label: 'lessons recorded so far, with 15 handouts' },
+]} />
 
 ## My role & scope
 
@@ -33,11 +43,11 @@ learning platform.
 
 | Section | Lessons | Focus |
 |---|---|---|
-| 1 · MATLAB & Simulink fundamentals | 6 | Plant modelling, solvers, first workshop |
-| 2 · PID controller design | 7 | Tuning methods, level and flow loops |
-| 3 · Siemens TIA Portal V17 | 6 | S7-1500, PID_Compact, 4–20 mA scaling |
-| 4 · OPC UA communication | 6 | Server on the PLC, MATLAB and Simulink client |
-| 5 · Hardware-in-the-loop | 4 | Co-simulation, performance analysis |
+| 1 · MATLAB & Simulink fundamentals | 6 | Plant modelling, solvers, first workshop: a first-order tank |
+| 2 · PID controller design | 7 | Ziegler–Nichols, manual tuning and the PID Tuner on level (K/s) and flow (FOPDT) |
+| 3 · Siemens TIA Portal V17 | 6 | S7-1500, PID_Compact, 4–20 mA scaling, trends |
+| 4 · OPC UA communication | 6 | Server on the PLC, UaExpert, MATLAB and Simulink client |
+| 5 · Hardware-in-the-loop | 4 | Co-simulation with the PLC, performance analysis |
 | 6 · Final projects | 3 | Level and flow — full workflow and report |
 
 ### One plant from start to finish
@@ -51,8 +61,17 @@ Nothing is a toy example that disappears after one lesson.
 
 Each step adds one real thing. Students tune in Simulink with the PID Tuner, then run PID_Compact on
 PLCSIM Advanced, then enable the S7-1500's OPC UA server and check it with UaExpert, then link
-Simulink to the PLC. Scaling a 4–20 mA signal (raw 0–27648 to engineering units) gets its own lesson,
-because that is where models and PLCs disagree.
+Simulink to the PLC.
+
+### Scaling gets its own lesson
+
+A Simulink model thinks in engineering units; the PLC's analog input delivers a raw integer, with
+4–20 mA mapped to 0–27648. Most "the model works but the PLC doesn't" moments in the course trace
+back to this one conversion. The widget below is that lesson: move the current, change the
+transmitter range and watch the raw value, the normalised value and the result — and what happens when
+someone normalises over 0–32767 instead.
+
+<ScalingLab />
 
 ### Say what kind of lesson it is
 
@@ -70,10 +89,15 @@ press play whether they should be watching or doing.
 ## Result
 
 - A path from "never opened Simulink" to tuning a real PLC loop, in one course
-- Lessons reusable in the university course and on the training rig
+- Lessons reusable in the university course and on the [training rig](../2025-digital-twin-rig/)
 - Material that shows how I explain control and integration to engineers
+
+The tuning side of the course — step tests, Ziegler–Nichols against IMC λ and a tuning simulator — is
+written up in Thai in the [PID tuning article](/blog/pid-tuning-step-test-to-imc-lambda/).
 
 ## Skills used
 
-Course design · MATLAB / Simulink and the PID Tuner · Siemens TIA Portal V17, S7-1500, PID_Compact
-and PLCSIM Advanced · OPC UA · hardware-in-the-loop testing · video lessons and lab handouts.
+- **Course design:** outline, lesson types, handouts, recorded video lessons
+- **MATLAB / Simulink:** plant models, PID Tuner, OPC UA blocks, co-simulation
+- **Siemens:** TIA Portal V17, S7-1500, PID_Compact, PLCSIM Advanced, analog scaling
+- **Integration:** OPC UA server on the PLC, UaExpert, hardware-in-the-loop testing

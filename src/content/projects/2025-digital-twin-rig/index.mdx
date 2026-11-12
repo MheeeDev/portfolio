@@ -7,16 +7,20 @@ role: Simulink and OPC UA integration — plant models, PID and cascade loops, t
 sector: Engineering education — process control training rig
 platforms: [Siemens S7-1500, TIA Portal V17, MATLAB / Simulink, OPC UA, Industrial Communication Toolbox]
 tags: [Process control, Digital twin, OPC UA, PLC, Education]
-cover: ./cover.svg
-coverAlt: Level-flow cascade on the training rig — the level controller sets the flow setpoint, the flow controller drives the control valve, and Simulink reads and writes the PLC over OPC UA.
+cover: ./cover.webp
+coverAlt: Cover — Tune the twin. Run the rig. A drawn tank with level and flow transmitters and a control valve, the single-loop versus cascade simulator and stat pills for one USE_OPC switch and two loops.
 highlights:
-  - The same Simulink controller runs against the plant model or the real rig — one switch
+  - The same Simulink controller runs against the plant model or the real rig — one switch, USE_OPC
   - Level–flow cascade (level PI → flow PI → control valve) on a pump loop with a VSD
   - Material for weeks 9–15 of a process-control course — labs, pre- and post-tests, videos
   - The rig later became the plant for the cloud lab every student connects to
 track: education
 featured: true
 ---
+
+import StatStrip from '../../../components/mdx/StatStrip.astro';
+import CascadeLoop from '../../../components/mdx/CascadeLoop.astro';
+import YouTube from '../../../components/YouTube.astro';
 
 ## Problem
 
@@ -28,16 +32,23 @@ The course needed a bridge — a model of the rig that behaves like the rig, con
 own PLC, so a controller designed in Simulink can be tried safely and then run for real without
 being rewritten.
 
+<StatStrip items={[
+  { value: '1', label: 'switch (USE_OPC) between the plant model and the real rig' },
+  { value: '2', label: 'loops in cascade — level PI sets the flow PI' },
+  { value: '7', label: 'course weeks (9–15) built on the rig' },
+  { value: '0', label: 'extra hardware — the S7-1500 serves OPC UA itself' },
+]} />
+
 ## My role & scope
 
 I built the Simulink side and the link to the PLC, working with the professor and the PLC
 programmer on the rig:
 
-- Plant models of the level and flow loops
-- PID and cascade controllers in Simulink, and the MATLAB functions that read and write the PLC
-- The tag contract with the PLC program: setpoint, process value and output for each loop
-- Tuning sessions on the rig, recorded as teaching videos
-- Course material for the control-loop weeks
+- **Plant models** of the level and flow loops, from step tests on the rig
+- **Controllers** — PID and cascade in Simulink, and the MATLAB functions that read and write the PLC
+- **Tag contract** with the PLC program: setpoint, process value and output for each loop
+- **Tuning sessions** on the rig, recorded as teaching videos
+- **Course material** for the control-loop weeks
 
 The rig: one pump loop with a level transmitter, a flow transmitter, a control valve and a pump on a
 variable-speed drive, controlled by an S7-1500 programmed in TIA Portal V17.
@@ -69,7 +80,15 @@ no extra hardware or licence to talk to Simulink, and the same tag names work in
 
 The outer level controller sets the setpoint of the inner flow controller, which drives the control
 valve. The inner loop is tuned first and made faster than the outer one. Students then run the
-single-loop and cascade versions against the same disturbance and compare the responses.
+single-loop and cascade versions against the same disturbance and compare the responses — the
+exercise below, rebuilt for this page. Switch between the two structures and watch what a drop in pump
+head does to the level.
+
+<CascadeLoop />
+
+In a single loop the level controller only reacts once the tank has already drifted. In cascade the
+flow controller sees the lost flow within seconds and opens the valve, so the level barely moves.
+The price is a second loop to tune — and it has to be tuned first.
 
 ### One client or a whole class
 
@@ -77,7 +96,8 @@ Two ways to expose the PLC were compared. Serving OPC UA straight from the PLC g
 latency and needs no licence, but every client adds load to the PLC cycle and needs network access
 to it. An industrial PC as a gateway keeps the PLC isolated and its load constant, at the cost of
 extra latency and a server licence. Direct access suits a lab bench with one or two clients; more
-clients call for the gateway or for tight network rules — the second route was taken in the cloud lab.
+clients call for the gateway or for tight network rules — the second route was taken in the
+[cloud lab](../2026-pdc-lab-cloud/).
 
 ## Delivery
 
@@ -90,6 +110,10 @@ clients call for the gateway or for tight network rules — the second route was
 - A teaching chapter on level–flow cascade control, with the P&ID, faceplates and worked error and
   controller-output examples
 
+One of the progress videos — modelling the level–flow system for PI-PI cascade in Simulink:
+
+<YouTube id="3YPUMjKaDYU" title="PI-PI cascade control: modelling a level/flow system in Simulink" />
+
 ## Result
 
 - Students tune in simulation first, then run the same controller on the real rig
@@ -97,8 +121,13 @@ clients call for the gateway or for tight network rules — the second route was
 - One rig serves a whole class, because most of the work happens on its twin
 - The models and the tag contract became the basis of the cloud lab used in 2026
 
+The method in Thai — why test on a twin before commissioning, the USE_OPC switch and a tank simulator
+to tune yourself — is in the [blog article](/blog/digital-twin-test-before-commissioning/).
+
 ## Skills used
 
-Process modelling (integrating and FOPDT processes) · PID and cascade tuning · MATLAB / Simulink ·
-OPC UA (S7-1500 server, MATLAB client) · Siemens TIA Portal V17 · reading P&IDs · teaching control
-theory with real hardware.
+- **Process modelling:** integrating and FOPDT processes from step tests
+- **Control:** PID and cascade tuning, inner loop first
+- **MATLAB / Simulink:** plant models, controllers, Industrial Communication Toolbox
+- **Siemens:** S7-1500 OPC UA server, TIA Portal V17
+- **Teaching:** P&IDs, course weeks with pre- and post-tests, recorded tuning sessions

@@ -7,8 +7,8 @@ role: Controls lead — bill of materials, electrical drawings, PLC and HMI prog
 sector: Engineering education — vending and payment automation trainer
 platforms: [Mitsubishi FX5U, GX Works3, GOT2000, Siemens IoT2050, Node-RED, MQTT, Flutter, Node.js, Omise / PromptPay]
 tags: [PLC, HMI, IoT, Education]
-cover: ./cover.svg
-coverAlt: Block diagram of the trainer — coin acceptor and machine I/O on an FX5U PLC with a GOT2000 HMI, an IoT2050 gateway publishing MQTT, and a payment front end.
+cover: ./cover.webp
+coverAlt: Cover — Scan. Pay. Spin. A drawn front-loading washing machine with a QR code and a coin slot, the payment step-through widget and stat pills for a 50-item bill of materials and a 3-day course.
 highlights:
   - One trainer covers the whole chain — machine I/O, PLC, HMI, IoT gateway, payment and notifications
   - 50-item bill of materials, wiring and single-line drawings, and an energy-monitoring panel
@@ -18,6 +18,9 @@ track: education
 featured: true
 ---
 
+import StatStrip from '../../../components/mdx/StatStrip.astro';
+import PaymentFlow from '../../../components/mdx/PaymentFlow.astro';
+
 ## Problem
 
 Students learn PLCs on boards of lamps and switches. Real machines on the street now take QR
@@ -26,15 +29,22 @@ payments, report online and send alerts — and none of that is on the lamp boar
 The university wanted a trainer built around a real machine: a coin-operated washing machine that
 also accepts QR payments, so students can follow one payment from the phone to the motor.
 
+<StatStrip items={[
+  { value: '50', label: 'items in the bill of materials, each with a datasheet' },
+  { value: '2', label: 'ways to pay — coins and PromptPay QR — into one PLC' },
+  { value: '3', unit: 'days', label: 'hands-on course built on the trainer' },
+  { value: '10', label: 'lessons in the online PLC course that followed' },
+]} />
+
 ## My role & scope
 
 I led the controls side of a small team:
 
-- Bill of materials and the datasheet for every device
-- Electrical drawings: wiring diagram, single-line diagram and the energy-monitoring panel
-- Automation architecture
-- FX5U PLC program and GOT2000 HMI screens, step-function flowchart and I/O tests
-- Lessons for the course: PLC basics (I/O and data types), basic commands, and GOT2000 screen design
+- **Hardware** — bill of materials and the datasheet for every device
+- **Drawings** — wiring diagram, single-line diagram and the energy-monitoring panel
+- **Architecture** — how machine, PLC, HMI, gateway and payment fit together
+- **PLC & HMI** — FX5U program and GOT2000 screens, step-function flowchart and I/O tests
+- **Lessons** — PLC basics (I/O and data types), basic commands, and GOT2000 screen design
 
 Teammates built the 3D layout and the payment front end. The trainer is a mobile aluminium frame
 holding the machine, the control panel and the payment hardware.
@@ -63,13 +73,20 @@ emergency stop. The GOT2000 HMI shows the coin count, the wash process and alarm
 payment side sits beside the PLC and talks to it through the gateway, so the machine logic can be
 taught on its own before payment is added.
 
+Follow one wash below — by QR or by coins — then take the gateway offline and try both again.
+
+<PaymentFlow />
+
+The point of the split shows up with the gateway offline: QR payments wait and staff get an alert, but
+coins still start the drum, because the wash sequence never depended on the cloud.
+
 ### Gateway and notifications
 
 The IoT2050 runs Node-RED: it reads the PLC and publishes over MQTT to the payment front end on a
 Raspberry Pi 5. The front end is a Flutter web app that also shows the machine's status; payments
 go through Opn Payments / Omise with PromptPay QR, and a Node.js back end receives the payment
-webhooks over a REST API and passes the result on, with data stored over MQTT. Machine alerts went to a chat service; when LINE Notify was shut down, the
-notification flow moved to Discord.
+webhooks over a REST API and passes the result on, with data stored over MQTT. Machine alerts went
+to a chat service; when LINE Notify was shut down, the notification flow moved to Discord.
 
 ## Delivery
 
@@ -89,6 +106,7 @@ notification flow moved to Discord.
 
 ## Skills used
 
-Mitsubishi FX5U and GX Works3 · GOT2000 and GT Designer3 · Siemens IoT2050 · Node-RED and MQTT ·
-electrical design (wiring and single-line diagrams, panel layout) · BOM and datasheets · FAT/SAT ·
-writing and teaching hands-on PLC lessons.
+- **PLC & HMI:** Mitsubishi FX5U and GX Works3, GOT2000 and GT Designer3
+- **IoT:** Siemens IoT2050, Node-RED, MQTT, payment webhooks
+- **Electrical:** wiring and single-line diagrams, panel layout, BOM and datasheets, energy metering
+- **Acceptance & teaching:** FAT/SAT protocol, user manual, hands-on PLC lessons

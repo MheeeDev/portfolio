@@ -1,0 +1,140 @@
+---
+// One wash on the QR-payment trainer, step by step. A QR payment travels phone → PromptPay / Omise →
+// Node.js back end (webhook) → MQTT → IoT2050 (Node-RED) → FX5U PLC → drum motor, and the status goes back
+// to the web app and to Discord. A coin goes straight from the coin acceptor into the PLC. With the gateway
+// offline, QR payments wait and the machine keeps running on coins — the PLC owns the machine.
+// The order of hops is from the trainer's architecture; message wording is illustrative.
+interface Props { title?: string }
+const { title = 'One wash, from QR scan to drum motor' } = Astro.props;
+const nodes = [
+  { k: 'phone', n: 'Phone', s: 'scan PromptPay QR' },
+  { k: 'pay', n: 'Omise', s: 'payment gateway' },
+  { k: 'api', n: 'Node.js', s: 'webhook · REST' },
+  { k: 'mqtt', n: 'MQTT', s: 'broker' },
+  { k: 'gw', n: 'IoT2050', s: 'Node-RED' },
+  { k: 'coin', n: 'Coin acceptor', s: '12 V pulses' },
+  { k: 'plc', n: 'FX5U PLC', s: 'credit · sequence' },
+  { k: 'hmi', n: 'GOT2000', s: 'status · alarms' },
+  { k: 'motor', n: 'Drum motor', s: 'BLDC · DC drive' },
+  { k: 'notify', n: 'Web app · Discord', s: 'status · alerts' },
+];
+---
+<section class="pf">
+  <div class="bar">
+    <p class="title">{title}</p>
+    <p class="hint">FX5U · GOT2000 · IoT2050 · MQTT</p>
+  </div>
+
+  <div class="controls">
+    <button type="button" class="go" data-pay="qr">▶ Pay by QR</button>
+    <button type="button" class="go" data-pay="coin">▶ Insert coins</button>
+    <div class="seg" role="group" aria-label="Gateway state">
+      <button type="button" data-gw="up" aria-pressed="true">Gateway online</button>
+      <button type="button" data-gw="down" aria-pressed="false">Gateway offline</button>
+    </div>
+  </div>
+
+  <div class="map">
+    {nodes.map((n) => (
+      <div class:list={['nd', n.k]} data-k={n.k}><b>{n.n}</b><small>{n.s}</small></div>
+    ))}
+  </div>
+
+  <ol class="log" aria-live="polite"><li class="idle">Press a button to start a wash.</li></ol>
+</section>
+
+<script>
+  type Step = { k: string; t: string; bad?: boolean };
+  const QR: Step[] = [
+    { k: 'phone', t: 'Customer scans the PromptPay QR shown in the web app' },
+    { k: 'pay', t: 'Omise confirms the payment and calls the back end’s webhook' },
+    { k: 'api', t: 'Node.js checks the webhook and publishes a credit for this machine' },
+    { k: 'mqtt', t: 'MQTT delivers the credit message to the machine’s gateway' },
+    { k: 'gw', t: 'Node-RED on the IoT2050 writes the credit into the PLC' },
+    { k: 'plc', t: 'PLC adds the credit, checks the door and E-stop, starts the wash sequence' },
+    { k: 'hmi', t: 'HMI shows the credit and the wash step' },
+    { k: 'motor', t: 'Drum runs: wash → rinse → spin' },
+    { k: 'notify', t: 'Status goes back over MQTT to the web app; an alert goes to Discord when the wash ends' },
+  ];
+  const QR_DOWN: Step[] = [
+    { k: 'phone', t: 'Customer scans the PromptPay QR' },
+    { k: 'pay', t: 'Omise confirms the payment and calls the webhook' },
+    { k: 'api', t: 'Node.js publishes the credit' },
+    { k: 'mqtt', t: 'The message waits — the gateway is not connected', bad: true },
+    { k: 'gw', t: 'Gateway offline: no credit reaches the PLC, the drum does not start', bad: true },
+    { k: 'notify', t: 'An alert goes to Discord so staff can refund or reset the gateway', bad: true },
+  ];
+  const COIN: Step[] = [
+    { k: 'coin', t: 'Coin acceptor sends one pulse per coin' },
+    { k: 'plc', t: 'PLC counts the pulses into credit and starts the wash sequence' },
+    { k: 'hmi', t: 'HMI shows the coin count and the wash step' },
+    { k: 'motor', t: 'Drum runs: wash → rinse → spin' },
+  ];
+  const COIN_DOWN: Step[] = [...COIN, { k: 'gw', t: 'Gateway offline: the wash still runs — the PLC owns the machine, the cloud only sees it later', bad: true }];
+
+  document.querySelectorAll<HTMLElement>('.pf').forEach((box) => {
+    let gwUp = true, timer = 0;
+    const log = box.querySelector('.log')!;
+    function play(steps: Step[]) {
+      window.clearTimeout(timer);
+      box.querySelectorAll('.nd').forEach((n) => n.classList.remove('on', 'done', 'bad'));
+      log.innerHTML = '';
+      let i = 0;
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const next = () => {
+        if (i > 0) box.querySelector(`.nd[data-k=${steps[i - 1].k}]`)?.classList.replace('on', 'done');
+        if (i >= steps.length) return;
+        const s = steps[i];
+        const nd = box.querySelector(`.nd[data-k=${s.k}]`)!;
+        nd.classList.remove('done');
+        nd.classList.add(s.bad ? 'bad' : 'on');
+        const li = document.createElement('li');
+        li.textContent = s.t;
+        if (s.bad) li.className = 'bad';
+        log.append(li);
+        i++;
+        timer = window.setTimeout(next, reduce ? 0 : 750);
+      };
+      next();
+    }
+    box.querySelectorAll<HTMLElement>('[data-pay]').forEach((b) => b.addEventListener('click', () => {
+      const qr = b.dataset.pay === 'qr';
+      play(qr ? (gwUp ? QR : QR_DOWN) : (gwUp ? COIN : COIN_DOWN));
+    }));
+    box.querySelectorAll<HTMLElement>('[data-gw]').forEach((b) => b.addEventListener('click', () => {
+      gwUp = b.dataset.gw === 'up';
+      box.querySelectorAll('[data-gw]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      box.classList.toggle('gwdown', !gwUp);
+    }));
+  });
+</script>
+
+<style>
+  .pf { --ok: #16a34a; --bad: #dc2626; margin: 2rem 0; padding: 1.2rem 1.3rem 1.1rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: var(--shadow); }
+  .bar { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.2rem 1rem; }
+  .bar p { margin: 0; }
+  .title { font-weight: 700; font-size: 1.08rem; }
+  .hint { color: var(--muted); font: 0.78rem var(--mono); }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.7rem; margin: 0.9rem 0 1rem; }
+  .go { font: 600 0.85rem var(--font); padding: 0.45rem 0.95rem; border: 0; border-radius: 999px; background: var(--accent); color: #fff; cursor: pointer; }
+  .go[data-pay='coin'] { background: var(--text); color: var(--surface); }
+  .seg { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--chip); }
+  .seg button { font: inherit; font-size: 0.8rem; padding: 0.3rem 0.75rem; border: 0; border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; }
+  .seg button[aria-pressed='true'] { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 0.12); }
+  .map { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-areas: 'phone pay api' 'coin . mqtt' 'hmi plc gw' 'notify . motor'; gap: 1.1rem 1.6rem; padding: 0.4rem; }
+  .nd { position: relative; z-index: 1; display: flex; flex-direction: column; padding: 0.5rem 0.7rem; border: 1px solid var(--line); border-radius: 12px; background: var(--chip); transition: background 0.25s, border-color 0.25s, transform 0.25s; }
+  .nd b { font: 600 0.8rem var(--mono); }
+  .nd small { font-size: 0.7rem; color: var(--muted); }
+  .phone { grid-area: phone; } .pay { grid-area: pay; } .api { grid-area: api; } .mqtt { grid-area: mqtt; }
+  .gw { grid-area: gw; } .coin { grid-area: coin; } .plc { grid-area: plc; border-width: 2px; } .hmi { grid-area: hmi; }
+  .motor { grid-area: motor; } .notify { grid-area: notify; }
+  .nd.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--surface)); transform: translateY(-2px); box-shadow: 0 6px 14px -6px color-mix(in srgb, var(--accent) 60%, transparent); }
+  .nd.done { border-color: color-mix(in srgb, var(--ok) 60%, var(--line)); background: color-mix(in srgb, var(--ok) 9%, var(--surface)); }
+  .nd.bad { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--surface)); }
+  .gwdown .gw { border-style: dashed; opacity: 0.6; }
+  .gwdown .gw.bad { opacity: 1; }
+  @media (max-width: 600px) { .map { grid-template-columns: 1fr 1fr; grid-template-areas: 'phone pay' 'api mqtt' 'gw coin' 'plc hmi' 'motor notify'; gap: 0.5rem; } }
+  .log { margin: 0.9rem 0 0; padding: 0.6rem 0.9rem 0.6rem 2rem; border: 1px solid var(--line); border-radius: 12px; background: color-mix(in srgb, var(--chip) 45%, transparent); font-size: 0.82rem; line-height: 1.55; min-height: 3rem; }
+  .log li.idle { list-style: none; margin-left: -1.1rem; color: var(--muted); }
+  .log li.bad { color: var(--bad); }
+</style>
