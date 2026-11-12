@@ -1,0 +1,163 @@
+---
+title: B.Eng. Thesis — MPC-Based PID Control of a Pressure Process (Phase I)
+summary: Ten open-loop step tests on a real S7-1200 pressure rig, a FOPDT model for each, PID_Compact tuned from the model — and the evidence that one fixed PID cannot cover the whole valve range.
+company: KMUTNB — B.Eng. thesis
+period: { start: 2022-06, end: 2023-03 } # TODO: confirm real start/end months
+# TODO: confirm which parts you did yourself in the team of three
+role: Thesis team of three — step tests, process model and PID tuning on the rig
+sector: Process control research — pressure loop
+platforms: [Siemens S7-1200, TIA Portal V17 (PID_Compact), WinCC Unified Comfort Panel, SIMATIC IoT2050, Factory I/O]
+tags: [Process control, PLC, PID, Step test, Education]
+cover: ./cover.webp
+coverAlt: Cover — One loop. Ten answers. The measured process gain at ten valve openings rising from 0.30 to 0.97, a drawn control valve and pressure transmitter, the gain-map simulator and stat pills for 10 step tests and a 3.2× gain spread.
+highlights:
+  - Ten open-loop step tests, from 10 % to 100 % valve output, each turned into K, dead time θ and time constant τ
+  - Process gain rose from 0.30 to 0.97 across the range — a 3.2× spread that one fixed PID cannot follow
+  - Ziegler–Nichols settings calculated for every point, IMC set up as the comparison, tuned loop run on PID_Compact
+  - Step-test data logged to CSV through a SIMATIC IoT2050 for later analysis
+  - The measured case for adapting the PID — gain scheduling first, MPC in Phase II
+track: education
+---
+
+import StatStrip from '../../../components/mdx/StatStrip.astro';
+import GainMap from '../../../components/mdx/GainMap.astro';
+import YouTube from '../../../components/YouTube.astro';
+
+## Problem
+
+Most PID loops in industry are tuned once, by trial and error, at one operating point — and then
+left to run across the whole range. Model predictive control (MPC) copes with changing process
+behaviour much better, but it needs a model, and it rarely reaches the PLCs and SCADA systems that
+plants already own.
+
+The thesis asked how far that can go on standard industrial hardware. **Phase I** laid the
+foundation on a real pressure loop: measure how the process behaves across its range, turn that
+into a model, and tune PID from the model — the baseline a Phase II MPC-based PID would be measured against.
+
+<StatStrip items={[
+  { value: '10', label: 'open-loop step tests, MV 0 → 10 … 100 %' },
+  { value: '3.2', unit: '×', label: 'spread in process gain, K 0.30 → 0.97' },
+  { value: '≈ 5.8', label: 'τ / θ — lag-dominant, easy to tune where it is steady' },
+  { value: '1', label: 'PID_Compact block on an S7-1200 running the loop' },
+]} />
+
+## My role & scope
+
+B.Eng. thesis in Chemical Process Engineering and Technology at KMUTNB, as a team of three. Our work on the pressure rig:
+
+- **Step tests** — open-loop tests across the full valve range and the process-parameter calculations
+- **Model** — a first-order-plus-dead-time (FOPDT) model of the pressure process at each operating point
+- **Tuning** — PID settings by Ziegler–Nichols for every point, with Internal Model Control (IMC) set up as the comparison
+- **On the PLC** — running the tuned loop on PID_Compact and recording the trends
+
+## Approach
+
+### The rig
+
+A small but complete industrial loop — the same parts a plant would use:
+
+- **Actuator:** control valve · **Measurement:** pressure transmitter
+- **Controller:** Siemens S7-1200 with **PID_Compact** in TIA Portal V17
+- **Operator panel:** WinCC Unified Comfort Panel
+- **Data:** SIMATIC IoT2050 logging every test to CSV
+- **Rehearsal:** Factory I/O to try the sequence before touching the rig
+
+### Where MPC fits
+
+The control architecture has four layers — field, automation, management and supervisory. Phase I
+covers the bottom two: the valve and transmitter, and the PLC with its panel. In Phase II, MPC sits at
+the supervisory level and adjusts the PID in the PLC instead of replacing it — a hierarchical structure
+taken from published work on MPC-based PID for industrial plants (Aboelhassan et al., 2020).
+
+### Model the process
+
+A mass balance on the pressure vessel, taken to the Laplace domain and reduced to FOPDT:
+
+```
+G(s) = K · e^(−θs) / (τs + 1)
+```
+
+### Step tests across the whole range
+
+With the controller in manual, the valve output was stepped from 0 % to each of 10, 20 … 100 %.
+From each reaction curve: process gain `K` = ΔPV % / ΔMV %, dead time `θ` from the tangent at the
+steepest point, and time constant `τ` at 63.2 % of the change.
+
+| Step (MV %) | K | θ (s) | τ (s) | ZN PID: PB % | Ti (s) | Td (s) |
+|---|---|---|---|---|---|---|
+| 0 → 20 | 0.60 | 4.38 | 23.3 | 9.4 | 8.8 | 2.2 |
+| 0 → 40 | 0.87 | 3.84 | 20.9 | 13.3 | 7.7 | 1.9 |
+| 0 → 60 | 0.92 | 3.65 | 21.1 | 13.2 | 7.3 | 1.8 |
+| 0 → 80 | 0.93 | 3.50 | 20.5 | 13.1 | 7.0 | 1.8 |
+| 0 → 100 | 0.97 | 3.80 | 21.7 | 14.0 | 7.6 | 1.9 |
+
+*Selected rows from ten tests. Ziegler–Nichols open-loop rules: PB % = 83·K·θ/τ, Ti = 2θ, Td = 0.5θ.*
+
+Two things stand out. Where the process is steady, **τ/θ ≈ 5–6**: dead time is short next to the
+time constant, so the loop is easy to tune. But **K is not constant** — above 30 % it sits at
+0.85–0.97, below 20 % it falls to 0.30–0.60. The process is non-linear across the valve range.
+
+### One tuning, ten operating points
+
+So what happens when a PID tuned at one point runs at another? Below is the thesis loop as a
+gain map, rebuilt for this write-up from the measured models. Pick where the PID was tuned and the
+rule, then click any of the ten points to run it there. The strip underneath runs the same settings
+at all ten points at once.
+
+<GainMap />
+
+Things to try:
+
+- **IMC tuned at 60 %, run at 10 %.** The loop gain drops to a third of its design value and settling
+  stretches from about 22 s to over a minute — the low-gain region the thesis found.
+- **Ziegler–Nichols tuned at 20 %.** Run it anywhere above 30 % and the loop gain is about 1.5× the design:
+  the quarter-decay response turns into an oscillation that does not settle.
+- **Switch on gain scheduling.** Scaling Kc by K<sub>tuned</sub> / K<sub>here</sub> brings the middle and top of
+  the range back in line. At the bottom (10–20 %) the valve runs out of travel, so new gains alone are not enough there.
+
+### Tune and run it on the PLC
+
+The settings were loaded into PID_Compact in TIA Portal V17 and the loop was run against a 50 %
+setpoint, with the reaction curve (ΔMV = 50 %) and the closed-loop response recorded on the PLC trend.
+
+## Delivery
+
+- Ten step tests with the full parameter table and Ziegler–Nichols PI and PID settings for each
+- Recorded reaction curve and the tuned closed-loop response on PID_Compact
+- Thesis presentation, revision 1, February 2023, with the methodology for Phase II
+- A public video trailer of the work on the rig:
+
+<YouTube id="jt4PBe5i9Z4" title="Trailer — Model predictive control (MPC) project, Phase I" />
+
+## Result
+
+- Above 30 % valve output the process is consistent — `K` 0.85–0.97, `θ` 3.5–4.6 s,
+  `τ` 20.5–22.8 s — and one PID tuning (PB ≈ 13–16 %, Ti ≈ 7–9 s, Td ≈ 1.8–2.3 s) fits it
+- Below 20 % the gain falls to 0.30–0.60, so a PID tuned for the upper range is too gentle there:
+  the measured evidence that the PID has to adapt to the operating point
+- The habit this project started — measure the process, then tune from a model — runs through
+  my later work, such as the [digital twin rig](../2025-digital-twin-rig/)
+
+## Looking back
+
+Three years on, I re-checked every slide. The measurements and the Ziegler–Nichols numbers hold up;
+a few choices I would make differently today:
+
+- **Start from IMC / SIMC, not Ziegler–Nichols.** ZN aims for quarter-decay oscillation — fine as a
+  textbook reference, too aggressive as the first setting on a real valve.
+- **Step around the operating point, up and down.** Stepping from 0 % every time includes the closed-valve
+  region with the most deadband and stiction; small 5–10 % steps both ways give sharper local models.
+- **Gain scheduling before MPC.** A gain that moves with valve opening is usually answered first with
+  scheduling or valve-characteristic compensation. MPC earns its place with constraints, interacting loops or long dead time.
+- **Check the gain units in PID_Compact.** A %/% gain must be converted when PV is scaled in engineering units.
+
+The full review in Thai — step-test method, ZN against IMC λ, a tuning simulator and all eight
+corrections — is in the [blog article](/blog/pid-tuning-step-test-to-imc-lambda/).
+
+## Skills used
+
+- **Process modelling:** mass balance, Laplace domain, FOPDT, reaction-curve analysis
+- **Tuning:** open-loop step testing, Ziegler–Nichols, IMC, gain scheduling as the next step
+- **Siemens:** S7-1200, TIA Portal V17, PID_Compact, WinCC Unified Comfort Panel
+- **Data:** SIMATIC IoT2050 logging to CSV for offline analysis
+- **Control concepts:** hierarchical MPC-based PID, model predictive control

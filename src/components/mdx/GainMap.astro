@@ -1,0 +1,281 @@
+---
+// The B.Eng. thesis pressure loop as a gain map: ten open-loop step tests (MV 0 → 10 … 100 %) gave
+// ten process gains. Pick where the PID was tuned, then run it at any of the ten points and see how one
+// fixed tuning behaves across the range — and what gain scheduling (Kc × K_tuned / K_here) changes.
+// K for all ten points is read from the thesis gain chart. θ and τ are measured for 20/40/60/80/100 %;
+// the points in between use the mean of their neighbours and 10 % uses the 20 % values (marked in the UI).
+// Each run is a local FOPDT model: SP +10 % at t = 5 s, valve from 50 % limited to 0–100 %.
+interface Props { title?: string }
+const { title = 'One PID, ten operating points' } = Astro.props;
+const steps = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+const gains = [0.30, 0.60, 0.83, 0.87, 0.85, 0.92, 0.95, 0.93, 0.95, 0.97];
+const measured: Record<number, [number, number]> = { 20: [4.38, 23.3], 40: [3.84, 20.9], 60: [3.65, 21.1], 80: [3.50, 20.5], 100: [3.80, 21.7] };
+const model = steps.map((s, i) => {
+  const m = measured[s] ?? (s < 20 ? measured[20] : [(measured[s - 10][0] + measured[s + 10][0]) / 2, (measured[s - 10][1] + measured[s + 10][1]) / 2]);
+  return { s, K: gains[i], theta: +m[0].toFixed(2), tau: +m[1].toFixed(1), real: s in measured };
+});
+const X = (s: number) => 56 + ((s - 10) / 90) * 556;
+const Y = (k: number) => 176 - k * 150;
+const tunable = [20, 40, 60, 80, 100];
+---
+<section class="gm" data-model={JSON.stringify(model)}>
+  <div class="bar">
+    <p class="title">{title}</p>
+    <p class="hint">Pressure loop · S7-1200 rig · 10 step tests</p>
+  </div>
+
+  <div class="controls">
+    <div class="ctl">
+      <span class="lab">Tuned at</span>
+      <div class="seg" role="group" aria-label="Operating point used for tuning">
+        {tunable.map((s) => <button type="button" data-tune={s} aria-pressed={s === 60 ? 'true' : 'false'}>{s} %</button>)}
+      </div>
+    </div>
+    <div class="ctl">
+      <span class="lab">Method</span>
+      <div class="seg" role="group" aria-label="Tuning rule">
+        <button type="button" data-method="zn" aria-pressed="false">Ziegler–Nichols PID</button>
+        <button type="button" data-method="imc" aria-pressed="true">IMC PI · λ = θ</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <span class="lab">Gains</span>
+      <div class="seg" role="group" aria-label="Controller gain">
+        <button type="button" data-sched="off" aria-pressed="true">Fixed</button>
+        <button type="button" data-sched="on" aria-pressed="false">Gain scheduling</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panes">
+    <figure class="pane">
+      <figcaption>Process gain K by step size <span>· click a point to run there</span></figcaption>
+      <svg viewBox="0 0 640 214" role="img" aria-label="Measured process gain at ten valve openings, low below 20 percent">
+        <rect class="low" x={X(10) - 12} y="14" width={X(20) - X(10) + 26} height="162" rx="6" />
+        <text class="lowt" x={X(10) - 6} y="168">low-gain region</text>
+        {[0, 0.25, 0.5, 0.75, 1].map((k) => (
+          <Fragment>
+            <line class="grid" x1="44" x2="624" y1={Y(k)} y2={Y(k)} />
+            <text class="ax" x="38" y={Y(k) + 4} text-anchor="end">{k.toFixed(2)}</text>
+          </Fragment>
+        ))}
+        <polyline class="kline" points={model.map((m) => `${X(m.s)},${Y(m.K)}`).join(' ')} />
+        <circle class="tring" r="14" cx={X(60)} cy={Y(0.92)} />
+        <text class="ttag" x={X(60)} y={Y(0.92) - 20} text-anchor="middle">tuned here</text>
+        {model.map((m, i) => (
+          <g class="pt" data-i={i} role="button" tabindex="0" aria-label={`Run at ${m.s} percent, K ${m.K}`}>
+            <circle class="hit" r="16" cx={X(m.s)} cy={Y(m.K)} />
+            <circle class:list={['dot', { est: !m.real }]} r="6" cx={X(m.s)} cy={Y(m.K)} />
+            <text class="ax" x={X(m.s)} y="198" text-anchor="middle">{m.s}</text>
+          </g>
+        ))}
+        <text class="ax" x="624" y="212" text-anchor="end">MV step (%)</text>
+      </svg>
+    </figure>
+
+    <figure class="pane">
+      <figcaption>Closed loop at <b class="here">60 %</b> <span>· SP +10 % at 5 s</span></figcaption>
+      <svg viewBox="0 0 640 214" role="img" aria-label="Closed-loop setpoint response at the selected operating point">
+        {[0, 1, 2, 3, 4].map((i) => <line class="grid" x1="20" x2="624" y1={16 + i * 40} y2={16 + i * 40} />)}
+        <path class="mv" d="" />
+        <path class="sp" d="" />
+        <path class="pv" d="" />
+        <text class="ax" x="624" y="208" text-anchor="end">0 → 150 s</text>
+      </svg>
+      <p class="legend"><i class="k pv-k"></i>PV <i class="k sp-k"></i>SP <i class="k mv-k"></i>Valve output</p>
+    </figure>
+  </div>
+
+  <p class="params"></p>
+
+  <dl class="metrics">
+    <div><dt>Loop gain K·Kc</dt><dd data-o="lg"></dd></div>
+    <div><dt>Overshoot</dt><dd data-o="os"></dd></div>
+    <div><dt>Settling ±2 %</dt><dd data-o="st"></dd></div>
+    <div><dt>Valve 0 / 100 %</dt><dd data-o="sat"></dd></div>
+  </dl>
+
+  <div class="strip" role="group" aria-label="Same tuning at all ten points">
+    <p class="slab">Same settings, all ten points <span>· settling time</span></p>
+    <div class="cells">
+      {model.map((m, i) => (
+        <button type="button" class="cell" data-i={i} aria-pressed={i === 5 ? 'true' : 'false'}>
+          <small>{m.s} %</small><b>–</b>
+        </button>
+      ))}
+    </div>
+  </div>
+
+  <p class="foot">K at all ten points is from the thesis gain chart. θ and τ are measured at 20, 40, 60, 80 and 100 %;
+    hollow points use the mean of their neighbours (10 % uses the 20 % values). Each run is a local linear model, so it shows the trend, not the rig's exact trace.</p>
+</section>
+
+<script>
+  type M = { s: number; K: number; theta: number; tau: number; real: boolean };
+  type C = { Kc: number; Ti: number; Td: number };
+
+  function tuning(m: M, method: string): C {
+    return method === 'zn'
+      ? { Kc: (1.2 * m.tau) / (m.K * m.theta), Ti: 2 * m.theta, Td: 0.5 * m.theta }
+      : { Kc: m.tau / (m.K * 2 * m.theta), Ti: m.tau, Td: 0 };
+  }
+
+  function simulate(p: M, c: C, trace = false) {
+    const dt = 0.05, T = 150, step = 10, u0 = 50;
+    const buf: number[] = Array(Math.round(p.theta / dt)).fill(u0);
+    let y = 0, I = 0, yf = 0, yp = 0, max = -1e9, settle = 0, sat = false;
+    const pv: string[] = [], mv: string[] = [];
+    const X = (t: number) => 20 + (t / T) * 604;
+    const Y = (v: number) => 176 - ((v + 4) / 20) * 160;
+    for (let i = 0; i <= T / dt; i++) {
+      const t = i * dt, sp = t < 5 ? 0 : step, e = sp - y;
+      let D = 0;
+      if (c.Td) { yf += ((y - yf) * dt) / (c.Td / 10 + dt); D = (-c.Kc * c.Td * (yf - yp)) / dt; yp = yf; }
+      let u = u0 + c.Kc * (e + I / c.Ti) + D;
+      if (u > 100) { u = 100; sat = true; } else if (u < 0) { u = 0; sat = true; } else I += e * dt;
+      buf.push(u);
+      const ud = buf.shift()!;
+      y += ((p.K * (ud - u0) - y) * dt) / p.tau;
+      if (t > 5) { max = Math.max(max, y); if (Math.abs(y - step) > 0.02 * step) settle = t - 5; }
+      if (trace && i % 15 === 0) {
+        pv.push(`${X(t).toFixed(1)},${Math.max(8, Math.min(184, Y(y))).toFixed(1)}`);
+        mv.push(`${X(t).toFixed(1)},${(176 - (u / 100) * 160).toFixed(1)}`);
+      }
+    }
+    return { os: Math.max(0, ((max - step) / step) * 100), settle, never: settle > T - 10, sat, pv, mv, Y, X };
+  }
+
+  const grade = (r: { os: number; settle: number; never: boolean }) =>
+    r.never || r.os > 30 || r.settle > 50 ? 'bad' : r.os > 15 || r.settle > 30 ? 'warn' : 'good';
+
+  document.querySelectorAll<HTMLElement>('.gm').forEach((box) => {
+    const model: M[] = JSON.parse(box.dataset.model!);
+    let tuneAt = 60, method = 'imc', sched = false, run = 5;
+    const $ = <T extends Element>(s: string) => box.querySelector<T>(s)!;
+    const press = (sel: string, on: (b: HTMLElement) => boolean) =>
+      box.querySelectorAll<HTMLElement>(sel).forEach((b) => b.setAttribute('aria-pressed', String(on(b))));
+    const pt = (s: number) => {
+      const m = model.find((x) => x.s === s)!;
+      return { x: 56 + ((s - 10) / 90) * 556, y: 176 - m.K * 150 };
+    };
+    const ctrlFor = (i: number) => {
+      const tm = model.find((m) => m.s === tuneAt)!;
+      const c = tuning(tm, method);
+      return sched ? { ...c, Kc: (c.Kc * tm.K) / model[i].K } : c;
+    };
+
+    function draw() {
+      const tm = model.find((m) => m.s === tuneAt)!;
+      const c = ctrlFor(run), here = model[run];
+      const r = simulate(here, c, true);
+      $('.pv').setAttribute('d', `M${r.pv.join(' L')}`);
+      $('.mv').setAttribute('d', `M${r.mv.join(' L')}`);
+      $('.sp').setAttribute('d', `M${r.X(0)},${r.Y(0)} H${r.X(5)} V${r.Y(10)} H${r.X(150)}`);
+      $('.here').textContent = `${here.s} %`;
+
+      const p = pt(tuneAt);
+      $('.tring').setAttribute('cx', String(p.x)); $('.tring').setAttribute('cy', String(p.y));
+      $('.ttag').setAttribute('x', String(p.x)); $('.ttag').setAttribute('y', String(p.y - 20));
+      box.querySelectorAll<SVGGElement>('.pt').forEach((g) => g.classList.toggle('on', Number(g.dataset.i) === run));
+
+      const design = tm.K * tuning(tm, method).Kc, lg = here.K * c.Kc;
+      $('.params').innerHTML =
+        `Model here: K <b>${here.K.toFixed(2)}</b> · θ <b>${here.theta} s</b> · τ <b>${here.tau} s</b>${here.real ? '' : ' <span>(θ, τ estimated)</span>'}` +
+        `<br>Controller: Kc <b>${c.Kc.toFixed(2)}</b> · Ti <b>${c.Ti.toFixed(1)} s</b>${c.Td ? ` · Td <b>${c.Td.toFixed(2)} s</b>` : ''}` +
+        ` <span>(PB ≈ ${(100 / c.Kc).toFixed(1)} %${sched ? ` · scheduled from ${tm.K.toFixed(2)} → ${here.K.toFixed(2)}` : ''})</span>`;
+
+      const set = (k: string, txt: string, cls: string) => { const el = $<HTMLElement>(`[data-o=${k}]`); el.textContent = txt; el.className = cls; };
+      const ratio = lg / design;
+      set('lg', `${lg.toFixed(2)} (${ratio >= 0.995 && ratio <= 1.005 ? 'as designed' : `${ratio.toFixed(2)}×`})`, Math.abs(ratio - 1) > 0.3 ? 'bad' : Math.abs(ratio - 1) > 0.1 ? 'warn' : 'good');
+      set('os', `${r.os.toFixed(0)} %`, r.os > 30 ? 'bad' : r.os > 15 ? 'warn' : 'good');
+      set('st', r.never ? 'does not settle' : `${r.settle.toFixed(0)} s`, grade({ os: 0, settle: r.settle, never: r.never }));
+      set('sat', r.sat ? 'hits a limit' : 'stays inside', r.sat ? 'warn' : 'good');
+
+      box.querySelectorAll<HTMLButtonElement>('.cell').forEach((b) => {
+        const i = Number(b.dataset.i), ri = simulate(model[i], ctrlFor(i));
+        b.dataset.g = grade(ri);
+        b.querySelector('b')!.textContent = ri.never ? '∞' : `${ri.settle.toFixed(0)} s`;
+        b.setAttribute('aria-pressed', String(i === run));
+        b.classList.toggle('tuned', model[i].s === tuneAt);
+      });
+    }
+
+    const pick = (i: number) => { run = i; draw(); };
+    box.querySelectorAll<HTMLElement>('[data-tune]').forEach((b) => b.addEventListener('click', () => {
+      tuneAt = Number(b.dataset.tune); press('[data-tune]', (x) => x === b); draw();
+    }));
+    box.querySelectorAll<HTMLElement>('[data-method]').forEach((b) => b.addEventListener('click', () => {
+      method = b.dataset.method!; press('[data-method]', (x) => x === b); draw();
+    }));
+    box.querySelectorAll<HTMLElement>('[data-sched]').forEach((b) => b.addEventListener('click', () => {
+      sched = b.dataset.sched === 'on'; press('[data-sched]', (x) => x === b); draw();
+    }));
+    box.querySelectorAll<SVGGElement>('.pt').forEach((g) => {
+      g.addEventListener('click', () => pick(Number(g.dataset.i)));
+      g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(Number(g.dataset.i)); } });
+    });
+    box.querySelectorAll<HTMLButtonElement>('.cell').forEach((b) => b.addEventListener('click', () => pick(Number(b.dataset.i))));
+    draw();
+  });
+</script>
+
+<style>
+  .gm { --ok: #16a34a; --warn: #d97706; --bad: #dc2626; margin: 2rem 0; padding: 1.2rem 1.3rem 1.1rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: var(--shadow); }
+  .bar { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.2rem 1rem; }
+  .bar p { margin: 0; }
+  .title { font-weight: 700; font-size: 1.08rem; }
+  .hint { color: var(--muted); font: 0.78rem var(--mono); }
+  .controls { display: flex; flex-wrap: wrap; gap: 0.7rem 1.2rem; margin: 0.9rem 0 1rem; }
+  .ctl { display: flex; flex-direction: column; gap: 0.3rem; }
+  .lab { font: 0.68rem var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .seg { display: inline-flex; flex-wrap: wrap; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--chip); }
+  .seg button { font: inherit; font-size: 0.82rem; padding: 0.32rem 0.75rem; border: 0; border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; }
+  .seg button[aria-pressed='true'] { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 0.12); }
+  .panes { display: grid; gap: 0.7rem; }
+  .pane { margin: 0; padding: 0.6rem 0.6rem 0.5rem; border: 1px solid var(--line); border-radius: 14px; background: color-mix(in srgb, var(--chip) 45%, transparent); }
+  figcaption { font-size: 0.82rem; font-weight: 600; margin: 0 0 0.3rem 0.2rem; }
+  figcaption span { font-weight: 400; color: var(--muted); }
+  svg { width: 100%; height: auto; display: block; }
+  .grid { stroke: var(--line); }
+  .ax { font: 10px var(--mono); fill: var(--muted); }
+  .low { fill: color-mix(in srgb, var(--warn) 12%, transparent); }
+  .lowt { font: 10px var(--mono); fill: var(--warn); }
+  .kline { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; }
+  .dot { fill: var(--accent); stroke: var(--surface); stroke-width: 2; transition: r 0.15s; }
+  .dot.est { fill: var(--surface); stroke: var(--accent); stroke-width: 2.2; }
+  .hit { fill: transparent; }
+  .pt { cursor: pointer; outline: none; }
+  .pt:hover .dot, .pt:focus-visible .dot { r: 8; }
+  .pt.on .dot { r: 8; fill: #a855f7; stroke: var(--surface); }
+  .pt.on .dot.est { fill: var(--surface); stroke: #a855f7; }
+  .pt:focus-visible .hit { stroke: var(--accent); stroke-width: 2; }
+  .tring { fill: none; stroke: var(--text); stroke-width: 1.5; stroke-dasharray: 3 3; }
+  .ttag { font: 600 10px var(--mono); fill: var(--text); }
+  .sp { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 6 5; }
+  .pv { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; }
+  .mv { fill: none; stroke: #a855f7; stroke-width: 1.3; opacity: 0.6; }
+  .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.45rem; margin: 0.3rem 0 0 0.2rem; font-size: 0.76rem; color: var(--muted); }
+  .k { display: inline-block; width: 16px; height: 3px; border-radius: 2px; margin-left: 0.4rem; }
+  .k:first-child { margin-left: 0; }
+  .pv-k { background: var(--accent); } .sp-k { background: var(--muted); } .mv-k { background: #a855f7; }
+  .params { margin: 0.85rem 0 0.2rem; font: 0.8rem/1.6 var(--mono); }
+  .params :global(span) { color: var(--muted); }
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.55rem; margin: 0.7rem 0 0; }
+  @media (max-width: 600px) { .metrics { grid-template-columns: repeat(2, 1fr); } }
+  .metrics div { padding: 0.55rem 0.7rem; border: 1px solid var(--line); border-radius: 12px; }
+  dt { font: 0.66rem var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  dd { margin: 0.2rem 0 0; font-weight: 700; font-size: 0.95rem; }
+  dd.good { color: var(--ok); } dd.warn { color: var(--warn); } dd.bad { color: var(--bad); }
+  .strip { margin-top: 1rem; }
+  .slab { margin: 0 0 0.4rem; font-size: 0.82rem; font-weight: 600; }
+  .slab span { font-weight: 400; color: var(--muted); }
+  .cells { display: grid; grid-template-columns: repeat(10, 1fr); gap: 0.35rem; }
+  @media (max-width: 600px) { .cells { grid-template-columns: repeat(5, 1fr); } }
+  .cell { --g: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 0.1rem; padding: 0.45rem 0.1rem; font: inherit; border: 1px solid color-mix(in srgb, var(--g) 35%, var(--line)); border-radius: 10px; background: color-mix(in srgb, var(--g) 10%, var(--surface)); color: var(--text); cursor: pointer; position: relative; }
+  .cell[data-g='good'] { --g: var(--ok); } .cell[data-g='warn'] { --g: var(--warn); } .cell[data-g='bad'] { --g: var(--bad); }
+  .cell small { font: 0.68rem var(--mono); color: var(--muted); }
+  .cell b { font-size: 0.86rem; color: var(--g); }
+  .cell[aria-pressed='true'] { outline: 2px solid #a855f7; outline-offset: 1px; }
+  .cell.tuned::after { content: ''; position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--text); }
+  .foot { margin: 0.8rem 0 0; font-size: 0.74rem; line-height: 1.5; color: var(--muted); }
+</style>
