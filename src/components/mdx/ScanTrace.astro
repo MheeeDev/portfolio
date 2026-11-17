@@ -1,0 +1,217 @@
+---
+// The path one scanned barcode takes before the machine moves on:
+// scanner → Bluetooth → cradle → RS-232 → HMI (waits for CR/LF) → Ethernet → PLC → handshake → SCADA → database.
+// Readers pick a fault, scan, and see where the value stops and what SCADA shows from far away.
+// Illustrative model of the real fault: the serial number, model name and timings are made up.
+interface Props { title?: string }
+const { title = 'Scan one barcode and follow it' } = Astro.props;
+const serial = '2611A00427';
+const hops = [
+  { k: 'scanner', name: 'Scanner', sub: 'Wireless, reads the label', link: 'Bluetooth' },
+  { k: 'cradle', name: 'Cradle', sub: 'Pairs with the scanner', link: 'RS-232' },
+  { k: 'hmi', name: 'HMI', sub: 'COM1 · waits for CR/LF', link: 'Ethernet' },
+  { k: 'plc', name: 'PLC', sub: 'Gets Serial · asks for Model', link: 'Handshake' },
+  { k: 'scada', name: 'SCADA', sub: 'Looks up Model in the DB', link: '' },
+];
+const faults = [
+  { k: 'ok', label: 'Healthy' },
+  { k: 'nocr', label: 'No CR/LF suffix (the real case)' },
+  { k: 'cradle', label: 'Cradle has no power' },
+  { k: 'db', label: 'Model not in the database' },
+];
+---
+<section class="st" data-fault="nocr" data-serial={serial}>
+  <div class="bar">
+    <p class="title">{title}</p>
+    <div class="faults" role="radiogroup" aria-label="Fault">
+      {faults.map((f) => (
+        <button type="button" role="radio" data-fault={f.k} aria-checked={f.k === 'nocr' ? 'true' : 'false'}>{f.label}</button>
+      ))}
+    </div>
+  </div>
+
+  <div class="bytes" aria-label="Bytes the scanner sends">
+    <span class="lbl">Scanner sends</span>
+    <span class="row">
+      {serial.split('').map((c) => <span class="b"><b>{c}</b><small>{c.charCodeAt(0).toString(16).toUpperCase()}</small></span>)}
+      <span class="b sfx"><b>CR</b><small>0D</small></span>
+      <span class="b sfx"><b>LF</b><small>0A</small></span>
+    </span>
+  </div>
+
+  <ol class="path">
+    {hops.map((h, i) => (
+      <li class="hop" data-hop={h.k} data-i={i}>
+        <span class="dot" aria-hidden="true"></span>
+        <b>{h.name}</b>
+        <small>{h.sub}</small>
+        <span class="got">idle</span>
+        {h.link && <span class="via">→ {h.link}</span>}
+        {h.link && <span class="link" aria-hidden="true"></span>}
+      </li>
+    ))}
+  </ol>
+
+  <div class="ctl">
+    <button type="button" class="go">Scan barcode</button>
+    <span class="hint">Pick a fault, then scan.</span>
+  </div>
+
+  <div class="remote">
+    <p class="rt">What we could see from SCADA, remotely</p>
+    <dl>
+      <div><dt>PLC connection</dt><dd class="conn">Connected</dd></div>
+      <div><dt>Handshake</dt><dd class="hs">0</dd></div>
+      <div><dt>Transaction Group runs</dt><dd class="runs">0</dd></div>
+      <div><dt>Serial tag</dt><dd class="ser">—</dd></div>
+      <div><dt>Model</dt><dd class="mdl">—</dd></div>
+    </dl>
+  </div>
+  <p class="verdict" aria-live="polite"></p>
+  <p class="note">Illustrative model. Handshake values follow the real station: 1 = PLC asks, 21 = SCADA answered. The serial number and model name are made up.</p>
+</section>
+
+<script>
+  const MODEL = 'MDL-450E';
+  // How far the value gets for each fault (index of the last hop that receives it) and how SCADA ends up.
+  const plan: Record<string, { reach: number; hs: string; run: boolean; model: string; stop: string; verdict: string }> = {
+    ok: { reach: 4, hs: '21', run: true, model: MODEL, stop: '', verdict: 'ค่าเดินครบ 5 จุด PLC ตั้ง handshake เป็น 1 SCADA ค้น Model แล้วตอบ 21 เครื่องไปขั้นตอนถัดไป' },
+    nocr: { reach: 2, hs: '0', run: false, model: '—', stop: 'hmi', verdict: 'ค่ามาถึง HMI ครบทุกตัวอักษร แต่ไม่มี Enter ปิดท้าย HMI จึงรอต่อไปเรื่อย ๆ PLC กับ SCADA ไม่เคยรู้เลยว่ามีการสแกน และไม่มี alarm สักตัว' },
+    cradle: { reach: 0, hs: '0', run: false, model: '—', stop: 'cradle', verdict: 'เครื่องสแกนอ่านได้และมีเสียง แต่ค่าไปไม่ถึงแท่น จากฝั่ง SCADA ภาพนี้เหมือนเคส CR/LF ทุกอย่าง ถึงต้องไปดูหน้างานต่อ' },
+    db: { reach: 4, hs: '1', run: true, model: '—', stop: 'scada', verdict: 'ค่ามาถึง SCADA แล้ว Transaction Group ทำงาน แต่หา Model ไม่เจอ handshake จึงค้างที่ 1 ปัญหาอยู่ฝั่ง SCADA หรือฐานข้อมูล ไม่ใช่หน้างาน' },
+  };
+
+  document.querySelectorAll<HTMLElement>('.st').forEach((box) => {
+    const serial = box.dataset.serial!;
+    const hops = [...box.querySelectorAll<HTMLElement>('.hop')];
+    const q = (s: string) => box.querySelector<HTMLElement>(s)!;
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, calm ? 0 : ms));
+    let runs = 0;
+    let run = 0;
+
+    function reset() {
+      run++;
+      const f = box.dataset.fault!;
+      box.dataset.sfx = f === 'nocr' ? 'off' : 'on';
+      hops.forEach((h) => { h.dataset.state = ''; h.querySelector('.got')!.textContent = 'idle'; });
+      q('.hs').textContent = '0';
+      q('.mdl').textContent = '—';
+      q('.verdict').textContent = '';
+      box.dataset.done = '';
+    }
+
+    async function scan() {
+      reset();
+      const id = run;
+      const f = box.dataset.fault!;
+      const p = plan[f];
+      const text: Record<string, string> = {
+        scanner: 'beep · read OK',
+        cradle: p.stop === 'cradle' ? 'no link' : 'forwarded',
+        hmi: f === 'nocr' ? `${serial}▍ waiting for ⏎` : `${serial} ⏎`,
+        plc: 'Serial in · handshake = 1',
+        scada: p.stop === 'scada' ? 'Model not found' : `Model ${MODEL} · handshake = 21`,
+      };
+      for (const h of hops) {
+        const i = Number(h.dataset.i);
+        if (i > p.reach + (p.stop === 'cradle' ? 1 : 0)) break;
+        h.dataset.state = 'busy';
+        await wait(420);
+        if (id !== run) return;
+        const stopHere = h.dataset.hop === p.stop;
+        h.dataset.state = stopHere ? 'stop' : 'pass';
+        h.querySelector('.got')!.textContent = text[h.dataset.hop!];
+        if (h.dataset.hop === 'plc') q('.hs').textContent = '1';
+        if (stopHere) break;
+      }
+      if (p.run) { runs++; q('.ser').textContent = serial; }
+      q('.runs').textContent = String(runs);
+      q('.hs').textContent = p.hs;
+      q('.mdl').textContent = p.model;
+      q('.verdict').textContent = p.verdict;
+      box.dataset.done = f;
+    }
+
+    box.querySelectorAll<HTMLButtonElement>('[role=radio]').forEach((b) =>
+      b.addEventListener('click', () => {
+        box.querySelectorAll('[role=radio]').forEach((x) => x.setAttribute('aria-checked', String(x === b)));
+        box.dataset.fault = b.dataset.fault!;
+        // Each fault starts from a fresh station, so the SCADA readouts can be compared side by side.
+        runs = 0;
+        q('.runs').textContent = '0';
+        q('.ser').textContent = '—';
+        reset();
+      }),
+    );
+    q('.go').addEventListener('click', scan);
+    reset();
+  });
+</script>
+
+<style>
+  .st { margin: 2rem 0; padding: 1.2rem 1.3rem; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); }
+  .bar { display: grid; gap: 0.7rem; margin-bottom: 1rem; }
+  .title { margin: 0; font-weight: 700; }
+  .faults { display: flex; flex-wrap: wrap; gap: 6px; }
+  .faults button { border: 1px solid var(--line); background: var(--chip); padding: 0.35rem 0.8rem; border-radius: 999px; font: 600 0.78rem var(--mono); color: var(--muted); cursor: pointer; }
+  .faults button[aria-checked='true'] { color: var(--text); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--accent-soft); }
+  .faults button[data-fault='nocr'][aria-checked='true'] { border-color: color-mix(in srgb, #ef4444 50%, var(--line)); background: color-mix(in srgb, #ef4444 10%, var(--surface)); }
+
+  .bytes { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 0.4rem 0.8rem; margin-bottom: 1rem; }
+  .bytes .lbl { font-size: 0.78rem; color: var(--muted); }
+  .bytes .row { display: flex; flex-wrap: wrap; gap: 3px; }
+  .b { display: grid; justify-items: center; min-width: 1.75rem; padding: 0.2rem 0.25rem; border: 1px solid var(--line); border-radius: 7px; background: var(--chip); }
+  .b b { font: 700 0.85rem/1.2 var(--mono); }
+  .b small { font: 0.6rem var(--mono); color: var(--muted); }
+  .b.sfx { border-color: color-mix(in srgb, #22c55e 55%, var(--line)); background: color-mix(in srgb, #22c55e 12%, var(--surface)); }
+  .st[data-sfx='off'] .b.sfx { border-style: dashed; border-color: #ef4444; background: transparent; opacity: 0.55; }
+  .st[data-sfx='off'] .b.sfx b, .st[data-sfx='off'] .b.sfx small { text-decoration: line-through; color: #dc2626; }
+
+  .path { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1.4rem; margin: 0; padding: 0; list-style: none; }
+  .hop { position: relative; display: grid; align-content: start; gap: 0.15rem; padding: 0.65rem 0.7rem; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); transition: border-color 0.2s, background 0.2s; }
+  .hop b { font-size: 0.92rem; }
+  .hop small { font-size: 0.7rem; color: var(--muted); line-height: 1.3; }
+  .hop .got { margin-top: 0.35rem; font: 600 0.72rem/1.35 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+  .hop .dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--line); }
+  .hop .link { position: absolute; top: 50%; right: -1.4rem; width: 1.4rem; height: 2px; background: var(--line); }
+  .hop .via { margin-top: 0.3rem; font: 0.66rem var(--mono); color: var(--muted); }
+  .hop[data-state='busy'] { box-shadow: inset 0 0 0 2px var(--accent); }
+  .hop[data-state='busy'] .dot { background: var(--accent); }
+  .hop[data-state='pass'] { border-color: color-mix(in srgb, #22c55e 55%, var(--line)); }
+  .hop[data-state='pass'] .dot { background: #22c55e; }
+  .hop[data-state='pass'] .got { color: #15803d; }
+  .hop[data-state='pass'] .link { background: #22c55e; }
+  .hop[data-state='stop'] { border-color: #ef4444; background: color-mix(in srgb, #ef4444 8%, var(--surface)); }
+  .hop[data-state='stop'] .dot { background: #ef4444; animation: blink 1s steps(2) infinite; }
+  .hop[data-state='stop'] .got { color: #dc2626; }
+  @keyframes blink { 50% { opacity: 0.2; } }
+
+  .ctl { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; margin: 1rem 0; }
+  .go { border: 0; padding: 0.55rem 1.1rem; border-radius: 999px; background: var(--accent); color: #fff; font: 700 0.88rem var(--font); cursor: pointer; }
+  :global([data-theme='dark']) .go { color: #0b0f14; }
+  .hint { font-size: 0.8rem; color: var(--muted); }
+
+  .remote { padding: 0.8rem 0.9rem; border-radius: 14px; background: #0f172a; color: #e2e8f0; }
+  .rt { margin: 0 0 0.5rem; font: 600 0.72rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: #94a3b8; }
+  .remote dl { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.5rem; margin: 0; }
+  .remote dt { font-size: 0.7rem; color: #94a3b8; }
+  .remote dd { margin: 0.1rem 0 0; font: 700 1.05rem var(--mono); overflow-wrap: anywhere; }
+  .conn { color: #4ade80; }
+  .st[data-done='nocr'] .hs, .st[data-done='cradle'] .hs, .st[data-done='nocr'] .runs, .st[data-done='cradle'] .runs { color: #fbbf24; }
+  .st[data-done='db'] .hs { color: #f87171; }
+  .st[data-done='ok'] .hs, .st[data-done='ok'] .mdl { color: #4ade80; }
+
+  .verdict { margin: 0.8rem 0 0; font-weight: 600; font-size: 0.92rem; }
+  .note { margin: 0.4rem 0 0; font-size: 0.75rem; color: var(--muted); }
+
+  @media (max-width: 720px) {
+    .path { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+    .hop .link { top: auto; bottom: -1rem; right: auto; left: 1.2rem; width: 2px; height: 1rem; }
+    .remote dl { grid-template-columns: 1fr 1fr; }
+    .bytes { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hop[data-state='stop'] .dot { animation: none; }
+  }
+</style>
